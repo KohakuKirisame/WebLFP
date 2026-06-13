@@ -9,6 +9,7 @@ import * as echarts from "echarts/core";
 import type { EChartsCoreOption } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useMemo, useRef, useState } from "react";
+import ChannelMultiSelect from "./ChannelMultiSelect";
 import Guide from "./Guide";
 import History, { type HistoricalInference } from "./History";
 import type { Language } from "./i18n";
@@ -240,7 +241,7 @@ function App() {
   const [metadata, setMetadata] = useState<Metadata | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [inference, setInference] = useState<Inference | null>(null);
-  const [channels, setChannels] = useState("");
+  const [channels, setChannels] = useState<string[]>([]);
   const [startSec, setStartSec] = useState(0);
   const [endSec, setEndSec] = useState(10);
   const [device, setDevice] = useState("auto");
@@ -298,10 +299,7 @@ function App() {
     return () => window.clearInterval(timer);
   }, [busy]);
 
-  const selectedChannels = useMemo(
-    () => channels.split(",").map((item) => item.trim()).filter(Boolean),
-    [channels],
-  );
+  const selectedChannels = channels;
 
   const payloadSource = useMemo(() => {
     const payload: Record<string, unknown> = {
@@ -334,6 +332,7 @@ function App() {
         setMetadata(null);
         setPreview(null);
         setInference(null);
+        setChannels([]);
       }
     } catch (reason) {
       setError((reason as Error).message);
@@ -388,7 +387,7 @@ function App() {
       });
       setMetadata(value);
       const recommended = value.channel_ids.slice(0, model?.recommended_channels ?? 4);
-      setChannels(recommended.join(", "));
+      setChannels(recommended);
       setStartSec(0);
       setEndSec(Math.min(10, value.duration_sec));
       setOperationProgress({ operation: "inspect", percent: 100, label: chinese ? "读取记录" : "Read recording", detail: chinese ? "记录元数据读取完成。" : "Recording metadata is ready." });
@@ -402,6 +401,10 @@ function App() {
 
   async function loadPreview() {
     const durationSec = endSec - startSec;
+    if (!selectedChannels.length) {
+      setError(chinese ? "请至少选择一个通道。" : "Select at least one channel.");
+      return;
+    }
     if (durationSec <= 0) {
       setError(chinese ? "结束时间必须大于开始时间。" : "End time must be greater than start time.");
       return;
@@ -435,6 +438,10 @@ function App() {
   }
 
   async function infer() {
+    if (!selectedChannels.length) {
+      setError(chinese ? "请至少选择一个通道。" : "Select at least one channel.");
+      return;
+    }
     setBusy("infer");
     setOperationProgress({ operation: "infer", percent: 1, label: chinese ? "生成 LFP feature" : "Generate LFP features", detail: chinese ? "正在创建推理任务。" : "Creating the inference job." });
     setError("");
@@ -932,6 +939,10 @@ function App() {
                 setSource({ ...source, path: event.target.value, stream_id: undefined });
                 setStreamOptions([]);
                 setDetectedFormat("");
+                setMetadata(null);
+                setPreview(null);
+                setInference(null);
+                setChannels([]);
               }} placeholder={chinese ? "选择记录文件或输入路径" : "Select a recording or enter a path"} />
               <button type="button" onClick={() => void chooseRecordingFile()} disabled={busy !== null}>
                 {busy === "select" ? (chinese ? "选择中…" : "Selecting…") : (chinese ? "选择文件" : "Select file")}
@@ -944,6 +955,10 @@ function App() {
                 setSource({ ...source, format: event.target.value, stream_id: undefined });
                 setStreamOptions([]);
                 setDetectedFormat("");
+                setMetadata(null);
+                setPreview(null);
+                setInference(null);
+                setChannels([]);
               }}>
                 {formats.map((format) => <option key={format}>{format}</option>)}
               </select>
@@ -1004,8 +1019,14 @@ function App() {
             <Field label={chinese ? "开始 / s" : "Start / s"}><input type="number" step="0.1" value={startSec} onChange={(event) => setStartSec(Number(event.target.value))} /></Field>
             <Field label={chinese ? "结束 / s" : "End / s"} hint={chinese ? "单次预览最长 300 秒。" : "Maximum 300 seconds per preview."}><input type="number" step="0.1" value={endSec} onChange={(event) => setEndSec(Number(event.target.value))} /></Field>
           </div>
-          <Field label={chinese ? "通道 ID" : "Channel IDs"} hint={chinese ? "逗号分隔，默认取前 4 个通道。" : "Comma-separated. The first four channels are selected by default."}>
-            <input value={channels} onChange={(event) => setChannels(event.target.value)} placeholder="0, 1, 2, 3" />
+          <Field label={chinese ? "通道 ID" : "Channel IDs"} hint={chinese ? "搜索并多选记录中实际存在的通道；检查记录后默认选择推荐通道。" : "Search and select channel IDs found in the recording. Recommended channels are selected after inspection."}>
+            <ChannelMultiSelect
+              options={metadata?.channel_ids ?? []}
+              value={channels}
+              maxSelected={model?.max_channels ?? 16}
+              chinese={chinese}
+              onChange={setChannels}
+            />
           </Field>
           <Field label={chinese ? "推理设备" : "Inference device"}>
             <select value={device} onChange={(event) => setDevice(event.target.value)}>

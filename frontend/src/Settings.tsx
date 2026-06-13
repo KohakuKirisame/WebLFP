@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { Language } from "./i18n";
 
 export type ThemeMode = "auto" | "dark" | "light";
 
@@ -102,21 +103,31 @@ function formatMemory(mebibytes: number): string {
   return `${(mebibytes / 1024).toFixed(1)} GiB`;
 }
 
-function formatElapsed(seconds = 0): string {
+function formatElapsed(seconds = 0, language: Language): string {
   const minutes = Math.floor(seconds / 60);
   const remainder = Math.floor(seconds % 60);
-  return minutes ? `${minutes} 分 ${remainder} 秒` : `${remainder} 秒`;
+  if (language === "zh") return minutes ? `${minutes} 分 ${remainder} 秒` : `${remainder} 秒`;
+  return minutes ? `${minutes} min ${remainder} sec` : `${remainder} sec`;
 }
 
 export default function Settings({
   theme,
+  language,
+  environmentConfirmed,
   onThemeChange,
+  onLanguageChange,
+  onEnvironmentConfirm,
   onBack,
 }: {
   theme: ThemeMode;
+  language: Language;
+  environmentConfirmed: boolean;
   onThemeChange: (theme: ThemeMode) => void;
+  onLanguageChange: (language: Language) => void;
+  onEnvironmentConfirm: () => void;
   onBack: () => void;
 }) {
+  const chinese = language === "zh";
   const [system, setSystem] = useState<SystemInfo | null>(null);
   const [options, setOptions] = useState<PyTorchOption[]>([]);
   const [selectedOption, setSelectedOption] = useState("");
@@ -174,7 +185,7 @@ export default function Settings({
       } catch {
         setStatus((current) => ({
           state: current?.state === "installing" ? "installing" : "waiting",
-          message: "WebLFP 已停止，正在安装 PyTorch 并等待服务重启…",
+          message: chinese ? "WebLFP 已停止，正在安装 PyTorch 并等待服务重启…" : "WebLFP has stopped while PyTorch is installed. Waiting for the service to restart…",
           elapsed_sec: (current?.elapsed_sec ?? 0) + 1.5,
           log_tail: current?.log_tail,
         }));
@@ -196,11 +207,13 @@ export default function Settings({
   async function install() {
     if (!selected?.compatible) return;
     const confirmed = window.confirm(
-      `安装 ${selected.label}？\n\nWebLFP 将停止，替换当前 PyTorch 后自动重启。独立进度窗口会显示安装日志，关闭该窗口不会中断后台安装。`,
+      chinese
+        ? `安装 ${selected.label}？\n\nWebLFP 将停止，替换当前 PyTorch 后自动重启。独立进度窗口会显示安装日志，关闭该窗口不会中断后台安装。`
+        : `Install ${selected.label}?\n\nWebLFP will stop, replace PyTorch, and restart automatically. A separate progress window shows the log; closing it does not stop the background installation.`,
     );
     if (!confirmed) return;
     setError("");
-    setStatus({ state: "waiting", message: "正在安排安装任务…" });
+    setStatus({ state: "waiting", message: chinese ? "正在安排安装任务…" : "Scheduling the installation…" });
     try {
       const value = await getJson<InstallStatus>("/api/settings/pytorch-install", {
         method: "POST",
@@ -211,7 +224,7 @@ export default function Settings({
     } catch (reason) {
       const message = (reason as Error).message;
       if (message.includes("fetch")) {
-        setStatus({ state: "waiting", message: "服务正在停止，安装即将开始…" });
+        setStatus({ state: "waiting", message: chinese ? "服务正在停止，安装即将开始…" : "The service is stopping. Installation will begin shortly…" });
       } else {
         setError(message);
         setStatus(null);
@@ -222,20 +235,21 @@ export default function Settings({
   return (
     <div className="settings-shell">
       <aside className="settings-sidebar">
-        <button className="back-button" onClick={onBack}>← 返回工作区</button>
+        <button className="back-button" onClick={onBack}>← {chinese ? "返回工作区" : "Back to workspace"}</button>
         <span className="settings-label">SETTINGS</span>
-        <a href="#compute">计算环境</a>
-        <a href="#appearance">外观</a>
+        <a href="#compute">{chinese ? "计算环境" : "Compute environment"}</a>
+        <a href="#language">{chinese ? "语言" : "Language"}</a>
+        <a href="#appearance">{chinese ? "外观" : "Appearance"}</a>
         <div className="settings-sidebar-note">
-          安装仅使用 PyTorch 官方 wheel 索引，不接受自定义命令或下载地址。
+          {chinese ? "安装仅使用 PyTorch 官方 wheel 索引，不接受自定义命令或下载地址。" : "Installation uses official PyTorch wheel indexes only. Custom commands and download URLs are not accepted."}
         </div>
       </aside>
 
       <main className="settings-content">
         <header className="settings-heading">
-          <div><span>APPLICATION SETTINGS</span><h1>设置</h1></div>
+          <div><span>APPLICATION SETTINGS</span><h1>{chinese ? "设置" : "Settings"}</h1></div>
           <button className="secondary-button compact" onClick={() => void refresh(true)} disabled={loading}>
-            {loading ? "检测中…" : "重新检测"}
+            {loading ? (chinese ? "检测中…" : "Detecting…") : (chinese ? "重新检测" : "Detect again")}
           </button>
         </header>
 
@@ -243,58 +257,69 @@ export default function Settings({
 
         <section id="compute" className="settings-section">
           <div className="settings-section-title">
-            <div><span>COMPUTE ENVIRONMENT</span><h2>计算环境</h2></div>
-            <p>CUDA wheel 最低为 13.0；ROCm 官方 wheel 仅支持 Linux。</p>
+            <div><span>COMPUTE ENVIRONMENT</span><h2>{chinese ? "计算环境" : "Compute environment"}</h2></div>
+            <p>{chinese ? "CUDA wheel 最低为 13.0；ROCm 官方 wheel 仅支持 Linux。" : "CUDA wheels require 13.0 or newer. Official ROCm wheels are Linux-only."}</p>
           </div>
 
           {system && (system.performance.warnings.length ? (
             <div className="performance-alert poor">
-              <div><span>PERFORMANCE WARNING</span><strong>机器性能过差</strong></div>
+              <div><span>PERFORMANCE WARNING</span><strong>{chinese ? "机器性能过差" : "Hardware below recommended performance"}</strong></div>
               <ul>{system.performance.warnings.map((warning) => <li key={warning.code}>{warning.message}</li>)}</ul>
             </div>
           ) : (
             <div className="performance-alert good">
-              <div><span>PERFORMANCE CHECK</span><strong>当前性能门槛已通过</strong></div>
-              <p>{system.pytorch.backend === "cpu" ? "当前为 CPU 模式，已按规则忽略显存和 CUDA BF16 项。" : "内存、显存和当前计算后端均未触发性能告警。"}</p>
+              <div><span>PERFORMANCE CHECK</span><strong>{chinese ? "当前性能门槛已通过" : "Current performance thresholds passed"}</strong></div>
+              <p>{system.pytorch.backend === "cpu" ? (chinese ? "当前为 CPU 模式，已按规则忽略显存和 CUDA BF16 项。" : "CPU mode is active; VRAM and CUDA BF16 checks are ignored.") : (chinese ? "内存、显存和当前计算后端均未触发性能告警。" : "Memory, VRAM, and the active compute backend produced no performance warning.")}</p>
             </div>
           ))}
 
           <div className="hardware-grid">
             <div className="hardware-card surface">
               <span>SYSTEM MEMORY</span>
-              <strong>{system?.memory.installed_gib ? `${system.memory.installed_gib.toFixed(1)} GiB` : "未检测"}</strong>
-              <p>{system?.memory.configured_speed_mt_s ? `${system.memory.configured_speed_mt_s} MT/s configured · ${system.memory.modules.length || "?"} module(s)` : "有效传输率未检测"}</p>
+              <strong>{system?.memory.installed_gib ? `${system.memory.installed_gib.toFixed(1)} GiB` : (chinese ? "未检测" : "Not detected")}</strong>
+              <p>{system?.memory.configured_speed_mt_s ? `${system.memory.configured_speed_mt_s} MT/s configured · ${system.memory.modules.length || "?"} module(s)` : (chinese ? "有效传输率未检测" : "Configured memory speed not detected")}</p>
             </div>
             <div className="hardware-card surface">
               <span>GPU / DRIVER</span>
-              <strong>{system?.nvidia.gpus[0]?.name ?? "未检测到 NVIDIA GPU"}</strong>
-              <p>{system?.nvidia.gpus[0] ? `${formatMemory(system.nvidia.gpus[0].memory_mib)} · Driver ${system.nvidia.gpus[0].driver_version}` : "CPU 模式仍可用"}</p>
+              <strong>{system?.nvidia.gpus[0]?.name ?? (chinese ? "未检测到 NVIDIA GPU" : "No NVIDIA GPU detected")}</strong>
+              <p>{system?.nvidia.gpus[0] ? `${formatMemory(system.nvidia.gpus[0].memory_mib)} · Driver ${system.nvidia.gpus[0].driver_version}` : (chinese ? "CPU 模式仍可用" : "CPU mode remains available")}</p>
             </div>
             <div className="hardware-card surface">
               <span>CUDA</span>
-              <strong>{system?.nvidia.driver_cuda_version ? `Driver ${system.nvidia.driver_cuda_version}` : "不可用"}</strong>
-              <p>{system?.nvidia.toolkit_cuda_version ? `Toolkit ${system.nvidia.toolkit_cuda_version}` : "未检测到 nvcc"}</p>
+              <strong>{system?.nvidia.driver_cuda_version ? `Driver ${system.nvidia.driver_cuda_version}` : (chinese ? "不可用" : "Unavailable")}</strong>
+              <p>{system?.nvidia.toolkit_cuda_version ? `Toolkit ${system.nvidia.toolkit_cuda_version}` : (chinese ? "未检测到 nvcc" : "nvcc not detected")}</p>
             </div>
             <div className="hardware-card surface">
               <span>PYTORCH</span>
-              <strong>{system?.pytorch.version ?? "检测中"}</strong>
+              <strong>{system?.pytorch.version ?? (chinese ? "检测中" : "Detecting")}</strong>
               <p>{system ? `${system.pytorch.backend.toUpperCase()} build · CUDA available ${system.pytorch.cuda_available ? "yes" : "no"}` : "-"}</p>
             </div>
             <div className="hardware-card surface">
               <span>cuDNN / ROCm</span>
-              <strong>{system?.pytorch.cudnn_version ? `cuDNN ${system.pytorch.cudnn_version}` : system?.system_cudnn_version ? `System cuDNN ${system.system_cudnn_version}` : "cuDNN 不可用"}</strong>
-              <p>{system?.rocm.platform_supported ? (system.rocm.detected ? `ROCm ${system.rocm.version ?? "detected"}` : "ROCm 未检测到") : "ROCm 仅支持 Linux"}</p>
+              <strong>{system?.pytorch.cudnn_version ? `cuDNN ${system.pytorch.cudnn_version}` : system?.system_cudnn_version ? `System cuDNN ${system.system_cudnn_version}` : (chinese ? "cuDNN 不可用" : "cuDNN unavailable")}</strong>
+              <p>{system?.rocm.platform_supported ? (system.rocm.detected ? `ROCm ${system.rocm.version ?? "detected"}` : (chinese ? "ROCm 未检测到" : "ROCm not detected")) : (chinese ? "ROCm 仅支持 Linux" : "ROCm is Linux-only")}</p>
             </div>
             <div className="hardware-card surface">
               <span>CUDA BF16</span>
-              <strong>{system?.pytorch.backend === "cpu" ? "CPU 模式已忽略" : system?.cuda_bf16.measured_tflops ? `${system.cuda_bf16.measured_tflops.toFixed(1)} TFLOP/s` : system?.cuda_bf16.supported === false ? "不支持原生 BF16" : "未完成检测"}</strong>
-              <p>RTX 4070 级实测下限 {system?.cuda_bf16.reference_floor_tflops ?? 60} TFLOP/s</p>
+              <strong>{system?.pytorch.backend === "cpu" ? (chinese ? "CPU 模式已忽略" : "Ignored in CPU mode") : system?.cuda_bf16.measured_tflops ? `${system.cuda_bf16.measured_tflops.toFixed(1)} TFLOP/s` : system?.cuda_bf16.supported === false ? (chinese ? "不支持原生 BF16" : "Native BF16 unsupported") : (chinese ? "未完成检测" : "Not measured")}</strong>
+              <p>{chinese ? "RTX 4070 级实测下限" : "RTX 4070-class measured floor"} {system?.cuda_bf16.reference_floor_tflops ?? 60} TFLOP/s</p>
             </div>
+          </div>
+
+          <div className={`environment-confirm ${environmentConfirmed ? "confirmed" : ""}`}>
+            <div>
+              <span>ENVIRONMENT CONFIRMATION</span>
+              <strong>{environmentConfirmed ? (chinese ? "当前环境已确认" : "Current environment confirmed") : (chinese ? "请确认当前运行环境" : "Confirm the current runtime environment")}</strong>
+              <p>{chinese ? "确认你已按 GPU 配置选择合适的 PyTorch；CPU 模式也是有效选择。" : "Confirm that PyTorch matches the GPU configuration. CPU mode is also a valid choice."}</p>
+            </div>
+            <button className="primary-button" disabled={!system || loading || environmentConfirmed} onClick={onEnvironmentConfirm}>
+              {environmentConfirmed ? (chinese ? "已配置" : "Configured") : (chinese ? "使用当前环境" : "Use current environment")}
+            </button>
           </div>
 
           <div className="install-panel surface">
             <div className="install-heading">
-              <div><span>PYTORCH RUNTIME</span><h3>选择 PyTorch 版本与计算后端</h3></div>
+              <div><span>PYTORCH RUNTIME</span><h3>{chinese ? "选择 PyTorch 版本与计算后端" : "Choose a PyTorch version and compute backend"}</h3></div>
               <span className="minimum-badge">CUDA ≥ 13.0</span>
             </div>
 
@@ -311,7 +336,7 @@ export default function Settings({
                       title={option.compatibility_reason}
                     >
                       <strong>{option.label}</strong>
-                      <small>{option.compatible ? option.compatibility_reason : `不可用：${option.compatibility_reason}`}</small>
+                      <small>{option.compatible ? option.compatibility_reason : `${chinese ? "不可用" : "Unavailable"}: ${option.compatibility_reason}`}</small>
                     </button>
                   ))}
                 </div>
@@ -320,12 +345,12 @@ export default function Settings({
 
             <div className="install-action">
               <div>
-                <span>将安装</span>
-                <strong>{selected?.label ?? "请选择兼容版本"}</strong>
+                <span>{chinese ? "将安装" : "TO INSTALL"}</span>
+                <strong>{selected?.label ?? (chinese ? "请选择兼容版本" : "Select a compatible version")}</strong>
                 <code>{selected?.index_url ?? "-"}</code>
               </div>
               <button className="primary-button" disabled={!selected?.compatible || ["waiting", "installing"].includes(status?.state ?? "")} onClick={() => void install()}>
-                {["waiting", "installing"].includes(status?.state ?? "") ? "安装进行中…" : "确认并安装"}
+                {["waiting", "installing"].includes(status?.state ?? "") ? (chinese ? "安装进行中…" : "Installation running…") : (chinese ? "确认并安装" : "Confirm and install")}
               </button>
             </div>
 
@@ -334,7 +359,7 @@ export default function Settings({
                 <div className="install-status-summary">
                   <span>{status.state.toUpperCase()}</span>
                   <p>{status.message}</p>
-                  <small>已用时 {formatElapsed(status.elapsed_sec)}</small>
+                  <small>{chinese ? "已用时" : "Elapsed"} {formatElapsed(status.elapsed_sec, language)}</small>
                 </div>
                 <div className={`install-progress-track ${["waiting", "installing"].includes(status.state) ? "active" : ""}`}>
                   <i />
@@ -347,16 +372,27 @@ export default function Settings({
           </div>
         </section>
 
+        <section id="language" className="settings-section">
+          <div className="settings-section-title">
+            <div><span>LANGUAGE</span><h2>{chinese ? "界面语言" : "Interface language"}</h2></div>
+            <p>{chinese ? "语言偏好保存在当前浏览器中；首次打开默认使用英文。" : "The language preference is stored in this browser. English is the default on first open."}</p>
+          </div>
+          <div className="language-options">
+            <button className={`language-option ${language === "en" ? "selected" : ""}`} onClick={() => onLanguageChange("en")}><strong>English</strong><small>English interface and guide</small></button>
+            <button className={`language-option ${language === "zh" ? "selected" : ""}`} onClick={() => onLanguageChange("zh")}><strong>中文</strong><small>中文界面与完整说明</small></button>
+          </div>
+        </section>
+
         <section id="appearance" className="settings-section">
           <div className="settings-section-title">
-            <div><span>APPEARANCE</span><h2>界面外观</h2></div>
-            <p>“跟随系统”会实时响应操作系统的深浅色设置。</p>
+            <div><span>APPEARANCE</span><h2>{chinese ? "界面外观" : "Appearance"}</h2></div>
+            <p>{chinese ? "“跟随系统”会实时响应操作系统的深浅色设置。" : "Follow system responds to operating-system light and dark mode changes."}</p>
           </div>
           <div className="theme-options">
             {([
-              ["auto", "跟随系统", "自动响应系统设置"],
-              ["dark", "深色", "适合低光环境"],
-              ["light", "浅色", "适合明亮环境"],
+              ["auto", chinese ? "跟随系统" : "Follow system", chinese ? "自动响应系统设置" : "Use the operating-system setting"],
+              ["dark", chinese ? "深色" : "Dark", chinese ? "适合低光环境" : "Designed for low-light environments"],
+              ["light", chinese ? "浅色" : "Light", chinese ? "适合明亮环境" : "Designed for bright environments"],
             ] as const).map(([value, label, description]) => (
               <button className={`theme-option ${theme === value ? "selected" : ""}`} onClick={() => onThemeChange(value)} key={value}>
                 <span className={`theme-preview ${value}`}><i /><i /><i /></span>

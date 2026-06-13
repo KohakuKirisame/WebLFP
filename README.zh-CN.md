@@ -77,6 +77,19 @@ git lfs pull
 首次启动会创建本地 `.venv`，根据 lock 文件安装 Python 依赖，并构建前端。虚拟环境、
 日志、本地 runs、记录文件、安装包和生成数组均被排除在 Git 之外。
 
+## ⚙️ 根据 GPU 配置 PyTorch
+
+首次处理数据前，请先打开**设置**，根据实际硬件配置 PyTorch。不要默认认为初始安装的
+PyTorch 已经能够使用 GPU。
+
+- NVIDIA GPU：确认当前驱动支持 CUDA 13.0 或更高版本，再选择 WebLFP 显示为兼容的
+  CUDA PyTorch 构建。
+- AMD GPU：使用受支持的 Linux 系统，并选择兼容的 ROCm 构建。
+- 没有兼容 GPU，或不需要 GPU：选择 CPU 构建。
+
+WebLFP 检测到所选后端后，点击**使用当前环境**。首次打开时，完成该确认前不能进入
+工作区。
+
 ## 🪟 Windows
 
 ```bat
@@ -106,24 +119,6 @@ UV_EXE=/path/to/uv bash ./run.sh
 
 如果已经完成前端构建，可以设置 `SKIP_FRONTEND_BUILD=1` 跳过构建。GPU 用户可在设置页
 选择 CPU、CUDA 或 Linux ROCm PyTorch 构建。
-
-## ✅ 发布检查
-
-发布前建议运行：
-
-```bash
-uv lock --check
-uv run ruff check .
-uv run pytest
-
-cd frontend
-npm ci
-npm run build
-npm audit --audit-level=high
-```
-
-如果你已经通过设置页安装了自定义 CUDA/ROCm PyTorch 构建，请直接使用虚拟环境里的
-Python 运行测试，避免普通 `uv run` 同步时替换该后端。
 
 ## 🧬 科学边界
 

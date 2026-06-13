@@ -84,6 +84,21 @@ The first launch creates a local `.venv`, installs Python dependencies from the
 lock file, and builds the frontend. Virtual environments, logs, local runs,
 recordings, installers, and generated arrays are excluded from Git.
 
+## ⚙️ Configure PyTorch For Your GPU
+
+Before processing data for the first time, open **Settings** and configure
+PyTorch for the actual hardware. Do not assume that the default build can use
+the GPU.
+
+- NVIDIA GPU: confirm that the installed driver supports CUDA 13.0 or newer,
+  then choose a compatible CUDA PyTorch build shown by WebLFP.
+- AMD GPU: use a supported Linux system and choose a compatible ROCm build.
+- No compatible GPU, or GPU use is not required: choose the CPU build.
+
+After WebLFP detects the selected backend, click **Use current environment**.
+The workspace remains unavailable on first open until this confirmation is
+completed.
+
 ## 🪟 Windows
 
 ```bat
@@ -113,25 +128,6 @@ After startup, open <http://127.0.0.1:8000>.
 
 Set `SKIP_FRONTEND_BUILD=1` to skip a completed frontend build. GPU users can
 choose CPU, CUDA, or Linux ROCm PyTorch builds from the settings page.
-
-## ✅ Release Checks
-
-Useful checks before publishing:
-
-```bash
-uv lock --check
-uv run ruff check .
-uv run pytest
-
-cd frontend
-npm ci
-npm run build
-npm audit --audit-level=high
-```
-
-If you installed a custom CUDA/ROCm PyTorch build through the settings page, run
-tests with the virtual environment Python directly to avoid a regular `uv run`
-sync replacing that backend.
 
 ## 🧬 Scientific Boundary
 

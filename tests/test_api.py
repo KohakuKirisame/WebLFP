@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +14,46 @@ from weblfp.segment_cache import TraceSegmentCache
 
 
 client = TestClient(app)
+
+
+def test_api_starts_when_pytorch_is_not_installed() -> None:
+    script = """
+import sys
+
+class BlockTorch:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == 'torch' or fullname.startswith('torch.'):
+            raise ModuleNotFoundError('torch intentionally unavailable', name=fullname)
+        return None
+
+sys.meta_path.insert(0, BlockTorch())
+from weblfp import api
+assert api.pytorch_status() == {'installed': False}
+request = api.InferenceRequest(
+    source={
+        'path': 'missing.npy',
+        'format': 'npy',
+        'sampling_rate_hz': 1875,
+        'channel_axis': 'first',
+    },
+    end_sec=1,
+)
+try:
+    api._run_and_store(request)
+except RuntimeError as error:
+    assert 'PyTorch is not installed' in str(error)
+else:
+    raise AssertionError('Inference should require PyTorch')
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def _source(path: Path) -> dict[str, object]:

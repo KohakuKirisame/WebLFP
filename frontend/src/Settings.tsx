@@ -36,8 +36,9 @@ type SystemInfo = {
     version: string | null;
   };
   pytorch: {
-    version: string;
-    backend: "cpu" | "cuda" | "rocm";
+    installed: boolean;
+    version: string | null;
+    backend: "none" | "cpu" | "cuda" | "rocm";
     cuda_build_version: string | null;
     hip_build_version: string | null;
     cuda_available: boolean;
@@ -261,7 +262,12 @@ export default function Settings({
             <p>{chinese ? "CUDA wheel 最低为 13.0；ROCm 官方 wheel 仅支持 Linux。" : "CUDA wheels require 13.0 or newer. Official ROCm wheels are Linux-only."}</p>
           </div>
 
-          {system && (system.performance.warnings.length ? (
+          {system && (!system.pytorch.installed ? (
+            <div className="performance-alert pending">
+              <div><span>RUNTIME REQUIRED</span><strong>{chinese ? "尚未安装 PyTorch" : "PyTorch is not installed"}</strong></div>
+              <p>{chinese ? "请在下方选择适合当前硬件的 CPU、CUDA 或 ROCm 版本。安装并重新检测后才能确认运行环境。" : "Choose a CPU, CUDA, or ROCm build for this hardware below. Install it and detect again before confirming the environment."}</p>
+            </div>
+          ) : system.performance.warnings.length ? (
             <div className="performance-alert poor">
               <div><span>PERFORMANCE WARNING</span><strong>{chinese ? "机器性能过差" : "Hardware below recommended performance"}</strong></div>
               <ul>{system.performance.warnings.map((warning) => <li key={warning.code}>{warning.message}</li>)}</ul>
@@ -291,8 +297,8 @@ export default function Settings({
             </div>
             <div className="hardware-card surface">
               <span>PYTORCH</span>
-              <strong>{system?.pytorch.version ?? (chinese ? "检测中" : "Detecting")}</strong>
-              <p>{system ? `${system.pytorch.backend.toUpperCase()} build · CUDA available ${system.pytorch.cuda_available ? "yes" : "no"}` : "-"}</p>
+              <strong>{system ? (system.pytorch.version ?? (chinese ? "未安装" : "Not installed")) : (chinese ? "检测中" : "Detecting")}</strong>
+              <p>{system?.pytorch.installed ? `${system.pytorch.backend.toUpperCase()} build · CUDA available ${system.pytorch.cuda_available ? "yes" : "no"}` : (chinese ? "请在下方选择并安装" : "Choose and install a runtime below")}</p>
             </div>
             <div className="hardware-card surface">
               <span>cuDNN / ROCm</span>
@@ -301,7 +307,7 @@ export default function Settings({
             </div>
             <div className="hardware-card surface">
               <span>CUDA BF16</span>
-              <strong>{system?.pytorch.backend === "cpu" ? (chinese ? "CPU 模式已忽略" : "Ignored in CPU mode") : system?.cuda_bf16.measured_tflops ? `${system.cuda_bf16.measured_tflops.toFixed(1)} TFLOP/s` : system?.cuda_bf16.supported === false ? (chinese ? "不支持原生 BF16" : "Native BF16 unsupported") : (chinese ? "未完成检测" : "Not measured")}</strong>
+              <strong>{system && !system.pytorch.installed ? (chinese ? "等待安装 PyTorch" : "Waiting for PyTorch") : system?.pytorch.backend === "cpu" ? (chinese ? "CPU 模式已忽略" : "Ignored in CPU mode") : system?.cuda_bf16.measured_tflops ? `${system.cuda_bf16.measured_tflops.toFixed(1)} TFLOP/s` : system?.cuda_bf16.supported === false ? (chinese ? "不支持原生 BF16" : "Native BF16 unsupported") : (chinese ? "未完成检测" : "Not measured")}</strong>
               <p>{chinese ? "RTX 4070 级实测下限" : "RTX 4070-class measured floor"} {system?.cuda_bf16.reference_floor_tflops ?? 60} TFLOP/s</p>
             </div>
           </div>
@@ -312,7 +318,7 @@ export default function Settings({
               <strong>{environmentConfirmed ? (chinese ? "当前环境已确认" : "Current environment confirmed") : (chinese ? "请确认当前运行环境" : "Confirm the current runtime environment")}</strong>
               <p>{chinese ? "确认你已按 GPU 配置选择合适的 PyTorch；CPU 模式也是有效选择。" : "Confirm that PyTorch matches the GPU configuration. CPU mode is also a valid choice."}</p>
             </div>
-            <button className="primary-button" disabled={!system || loading || environmentConfirmed} onClick={onEnvironmentConfirm}>
+            <button className="primary-button" disabled={!system?.pytorch.installed || loading || environmentConfirmed} onClick={onEnvironmentConfirm}>
               {environmentConfirmed ? (chinese ? "已配置" : "Configured") : (chinese ? "使用当前环境" : "Use current environment")}
             </button>
           </div>

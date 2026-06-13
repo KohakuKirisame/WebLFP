@@ -226,9 +226,8 @@ function App() {
   const [language, setLanguage] = useState<Language>(() => (
     window.localStorage.getItem("weblfp-language") === "zh" ? "zh" : "en"
   ));
-  const [environmentConfirmed, setEnvironmentConfirmed] = useState(
-    () => window.localStorage.getItem("weblfp-environment-confirmed") === "1",
-  );
+  const [environmentConfirmed, setEnvironmentConfirmed] = useState(false);
+  const [environmentChecked, setEnvironmentChecked] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>(() => {
     const saved = window.localStorage.getItem("weblfp-theme");
     return saved === "dark" || saved === "light" || saved === "auto" ? saved : "auto";
@@ -263,6 +262,17 @@ function App() {
 
   useEffect(() => {
     requestJson<ModelInfo>("/api/model").then(setModel).catch((reason) => setError(reason.message));
+    requestJson<{ installed: boolean }>("/api/settings/pytorch-status")
+      .then(({ installed }) => {
+        const confirmed = installed && window.localStorage.getItem("weblfp-environment-confirmed") === "1";
+        if (!confirmed) window.localStorage.removeItem("weblfp-environment-confirmed");
+        setEnvironmentConfirmed(confirmed);
+        setEnvironmentChecked(true);
+      })
+      .catch(() => {
+        setEnvironmentConfirmed(false);
+        setEnvironmentChecked(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -1104,7 +1114,7 @@ function App() {
         </aside>
         </div>
       )}
-      {!environmentConfirmed && page !== "settings" && (
+      {environmentChecked && !environmentConfirmed && page !== "settings" && (
         <div className="setup-overlay" role="dialog" aria-modal="true" aria-labelledby="setup-title">
           <section className="setup-dialog surface">
             <span className="eyebrow">FIRST-RUN SETUP</span>

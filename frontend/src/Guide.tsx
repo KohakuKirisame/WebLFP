@@ -112,7 +112,7 @@ const englishSections: GuideSection[] = [
     title: "Settings and compute environment",
     paragraphs: [
       "Settings reports PyTorch, CPU/CUDA/ROCm backend, GPU and VRAM, CUDA and cuDNN, system memory and memory speed, plus a short CUDA BF16 benchmark.",
-      "Choose a PyTorch build that matches the machine: CUDA 13.0 or newer for a compatible NVIDIA driver, ROCm on supported Linux AMD systems, or CPU when no compatible GPU is available. Confirm the current environment before returning to the workspace.",
+      "Project initialization does not install PyTorch. Choose and install a build that matches the machine: CUDA 13.0 or newer for a compatible NVIDIA driver, ROCm on supported Linux AMD systems, or CPU when no compatible GPU is available. Confirm the current environment after installation before returning to the workspace.",
       "A poor-performance warning means short previews may still work, but large recordings or long intervals are unsuitable. Reduce duration or channels, or use a stronger workstation. A PyTorch replacement stops the local service and restarts it after installation; the progress window shows logs.",
     ],
   },
@@ -175,7 +175,7 @@ const chineseSections: GuideSection[] = [
   },
   {
     title: "设置与计算环境",
-    paragraphs: ["设置页显示 PyTorch、CPU/CUDA/ROCm 后端、GPU 和显存、CUDA 和 cuDNN、系统内存和内存速率，以及 CUDA BF16 简短测试。", "请按机器选择 PyTorch：NVIDIA 且驱动兼容时选择 CUDA 13.0 或更高版本；支持的 Linux AMD 系统选择 ROCm；没有兼容 GPU 时选择 CPU。返回工作区前需确认当前环境。", "性能过差提醒表示小片段可能仍可运行，但不适合较大记录或长时间范围。可缩短时间、减少通道或换用更强工作站。更换 PyTorch 时本机服务会停止并在安装后重启，进度窗口会显示日志。"],
+    paragraphs: ["设置页显示 PyTorch、CPU/CUDA/ROCm 后端、GPU 和显存、CUDA 和 cuDNN、系统内存和内存速率，以及 CUDA BF16 简短测试。", "项目初始化不会安装 PyTorch。请按机器选择并安装：NVIDIA 且驱动兼容时选择 CUDA 13.0 或更高版本；支持的 Linux AMD 系统选择 ROCm；没有兼容 GPU 时选择 CPU。安装后需确认当前环境才能返回工作区。", "性能过差提醒表示小片段可能仍可运行，但不适合较大记录或长时间范围。可缩短时间、减少通道或换用更强工作站。更换 PyTorch 时本机服务会停止并在安装后重启，进度窗口会显示日志。"],
   },
 ];
 

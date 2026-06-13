@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+import importlib
 import json
 import os
 import platform
@@ -14,13 +15,13 @@ from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
 
-import torch
 from pydantic import BaseModel
 
 from .profile import project_root
 
 
 Backend = Literal["cpu", "cuda", "rocm"]
+DetectedBackend = Literal["none", "cpu", "cuda", "rocm"]
 
 MIN_SYSTEM_MEMORY_GIB = 16.0
 MIN_MEMORY_SPEED_MT_S = 4800
@@ -73,6 +74,17 @@ PYTORCH_MATRIX: tuple[dict[str, Any], ...] = (
         ),
     },
 )
+
+
+def _load_torch() -> Any | None:
+    try:
+        return importlib.import_module("torch")
+    except (ImportError, OSError):
+        return None
+
+
+def pytorch_installed() -> bool:
+    return _load_torch() is not None
 
 
 def _run(command: list[str], timeout: int = 10) -> str | None:
@@ -255,7 +267,10 @@ def _memory_info() -> dict[str, Any]:
     }
 
 
-def _benchmark_cuda_bf16(torch_backend: Backend) -> dict[str, Any]:
+def _benchmark_cuda_bf16(
+    torch_backend: DetectedBackend,
+    torch_module: Any | None,
+) -> dict[str, Any]:
     result: dict[str, Any] = {
         "evaluated": False,
         "supported": None,
@@ -263,19 +278,22 @@ def _benchmark_cuda_bf16(torch_backend: Backend) -> dict[str, Any]:
         "reference": "GeForce RTX 4070-class",
         "reference_floor_tflops": RTX_4070_BF16_FLOOR_TFLOPS,
         "passes": None,
-        "reason": "CPU mode does not require a CUDA BF16 benchmark.",
+        "reason": "PyTorch is not installed.",
     }
-    if torch_backend != "cuda":
+    if torch_backend == "none" or torch_module is None:
         return result
-    if not torch.cuda.is_available():
+    if torch_backend != "cuda":
+        result["reason"] = "CPU and ROCm modes do not require a CUDA BF16 benchmark."
+        return result
+    if not torch_module.cuda.is_available():
         result["reason"] = "The CUDA build is installed, but CUDA is not available."
         return result
 
     result["evaluated"] = True
     try:
-        supported = bool(torch.cuda.is_bf16_supported(including_emulation=False))
+        supported = bool(torch_module.cuda.is_bf16_supported(including_emulation=False))
     except TypeError:
-        supported = bool(torch.cuda.is_bf16_supported())
+        supported = bool(torch_module.cuda.is_bf16_supported())
     result["supported"] = supported
     if not supported:
         result["passes"] = False
@@ -288,17 +306,17 @@ def _benchmark_cuda_bf16(torch_backend: Backend) -> dict[str, Any]:
     right = None
     output = None
     try:
-        left = torch.randn((size, size), device="cuda", dtype=torch.bfloat16)
-        right = torch.randn((size, size), device="cuda", dtype=torch.bfloat16)
-        output = torch.empty_like(left)
+        left = torch_module.randn((size, size), device="cuda", dtype=torch_module.bfloat16)
+        right = torch_module.randn((size, size), device="cuda", dtype=torch_module.bfloat16)
+        output = torch_module.empty_like(left)
         for _ in range(3):
-            torch.mm(left, right, out=output)
-        torch.cuda.synchronize()
-        start = torch.cuda.Event(enable_timing=True)
-        end = torch.cuda.Event(enable_timing=True)
+            torch_module.mm(left, right, out=output)
+        torch_module.cuda.synchronize()
+        start = torch_module.cuda.Event(enable_timing=True)
+        end = torch_module.cuda.Event(enable_timing=True)
         start.record()
         for _ in range(iterations):
-            torch.mm(left, right, out=output)
+            torch_module.mm(left, right, out=output)
         end.record()
         end.synchronize()
         elapsed_seconds = start.elapsed_time(end) / 1000
@@ -347,7 +365,7 @@ def performance_assessment(
             }
         )
 
-    if backend != "cpu":
+    if backend in {"cuda", "rocm"}:
         device_memory = pytorch.get("device_memory_mib") or [
             gpu["memory_mib"] for gpu in nvidia.get("gpus", [])
         ]
@@ -428,28 +446,48 @@ def _detect_system_cached() -> dict[str, Any]:
     rocm_version = _parse_version(hip_output, r"HIP version:\s*([0-9.]+)")
     system_cudnn_version, system_cudnn_files = _system_cudnn()
 
-    torch_backend: Backend = "cpu"
-    if torch.version.cuda:
-        torch_backend = "cuda"
-    elif getattr(torch.version, "hip", None):
-        torch_backend = "rocm"
-
-    device_count = torch.cuda.device_count()
-    device_properties = [torch.cuda.get_device_properties(i) for i in range(device_count)]
-    pytorch = {
-        "version": torch.__version__,
-        "backend": torch_backend,
-        "cuda_build_version": torch.version.cuda,
-        "hip_build_version": getattr(torch.version, "hip", None),
-        "cuda_available": torch.cuda.is_available(),
-        "device_count": device_count,
-        "devices": [properties.name for properties in device_properties],
-        "device_memory_mib": [
-            round(properties.total_memory / (1024**2)) for properties in device_properties
-        ],
-        "cudnn_available": torch.backends.cudnn.is_available(),
-        "cudnn_version": _format_cudnn(torch.backends.cudnn.version()),
-    }
+    torch_module = _load_torch()
+    torch_backend: DetectedBackend = "none"
+    if torch_module is None:
+        pytorch = {
+            "installed": False,
+            "version": None,
+            "backend": torch_backend,
+            "cuda_build_version": None,
+            "hip_build_version": None,
+            "cuda_available": False,
+            "device_count": 0,
+            "devices": [],
+            "device_memory_mib": [],
+            "cudnn_available": False,
+            "cudnn_version": None,
+        }
+    else:
+        if torch_module.version.cuda:
+            torch_backend = "cuda"
+        elif getattr(torch_module.version, "hip", None):
+            torch_backend = "rocm"
+        else:
+            torch_backend = "cpu"
+        device_count = torch_module.cuda.device_count()
+        device_properties = [
+            torch_module.cuda.get_device_properties(index) for index in range(device_count)
+        ]
+        pytorch = {
+            "installed": True,
+            "version": torch_module.__version__,
+            "backend": torch_backend,
+            "cuda_build_version": torch_module.version.cuda,
+            "hip_build_version": getattr(torch_module.version, "hip", None),
+            "cuda_available": torch_module.cuda.is_available(),
+            "device_count": device_count,
+            "devices": [properties.name for properties in device_properties],
+            "device_memory_mib": [
+                round(properties.total_memory / (1024**2)) for properties in device_properties
+            ],
+            "cudnn_available": torch_module.backends.cudnn.is_available(),
+            "cudnn_version": _format_cudnn(torch_module.backends.cudnn.version()),
+        }
     nvidia = {
         "available": bool(gpus),
         "gpus": gpus,
@@ -457,7 +495,7 @@ def _detect_system_cached() -> dict[str, Any]:
         "toolkit_cuda_version": toolkit_cuda,
         "minimum_cuda_version": "13.0",
     }
-    cuda_bf16 = _benchmark_cuda_bf16(torch_backend)
+    cuda_bf16 = _benchmark_cuda_bf16(torch_backend, torch_module)
 
     return {
         "platform": {

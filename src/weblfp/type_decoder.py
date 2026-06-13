@@ -9,14 +9,10 @@ import numpy as np
 import torch
 from pydantic import BaseModel, Field
 
+from .downstream_schema import SpikeTypeDecodeResult, SpikeTypeLabel
 from .model_service import DeviceChoice, resolve_device
 from .models.spike_count import SpikeCountPresenceHead
 from .profile import project_root, sha256_file
-
-
-class SpikeTypeLabel(BaseModel):
-    id: Literal["narrow", "non_narrow"]
-    name: str = Field(min_length=1)
 
 
 class SpikeTypeDecoderProfile(BaseModel):
@@ -51,25 +47,6 @@ class SpikeTypeDecoderProfile(BaseModel):
     @property
     def hop_samples(self) -> int:
         return round(self.hop_sec * self.target_sample_rate_hz)
-
-
-class SpikeTypeDecodeResult(BaseModel):
-    decoder_id: str
-    display_name: str
-    device: str
-    labels: list[SpikeTypeLabel]
-    window_sec: float
-    hop_sec: float
-    window_start_sec: list[float]
-    predicted_counts: list[list[float]]
-    rounded_counts: list[list[int]]
-    presence_probabilities: list[list[float]]
-    presence: list[list[bool]]
-    mean_counts: dict[str, float]
-    total_predicted_counts: dict[str, float]
-    presence_rates: dict[str, float]
-    reference_metrics: dict[str, float]
-    limitations: list[str]
 
 
 def default_decoder_dir() -> Path:

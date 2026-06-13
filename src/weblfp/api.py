@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .dialogs import select_recording_file
-from .inference import run_inference
+from .downstream_schema import SpikeTypeDecodeResult
 from .inference_jobs import InferenceCancelled, InferenceJobStatus, InferenceJobStore
 from .preprocessing import downsample_preview, robust_zscore_channels
 from .profile import default_model_dir, load_model_profile, project_root, verify_checkpoint
@@ -29,10 +29,10 @@ from .settings import (
     detect_system,
     get_pytorch_option,
     install_status,
+    pytorch_installed,
     pytorch_options,
     start_pytorch_install,
 )
-from .type_decoder import SpikeTypeDecodeResult, decode_spike_types
 
 
 class InspectRequest(BaseModel):
@@ -127,6 +127,15 @@ def _run_and_store(
     request: InferenceRequest,
     progress_callback: Any = None,
 ) -> InferenceResponse:
+    try:
+        from .inference import run_inference
+    except ModuleNotFoundError as error:
+        if error.name != "torch" and not (error.name or "").startswith("torch."):
+            raise
+        raise RuntimeError(
+            "PyTorch is not installed. Configure a runtime on the Settings page first."
+        ) from error
+
     result = run_inference(
         source=request.source,
         start_sec=request.start_sec,
@@ -205,6 +214,11 @@ def model_info() -> dict[str, Any]:
 @app.get("/api/settings/system")
 def system_info(refresh: bool = False) -> dict[str, Any]:
     return detect_system(refresh=refresh)
+
+
+@app.get("/api/settings/pytorch-status")
+def pytorch_status() -> dict[str, bool]:
+    return {"installed": pytorch_installed()}
 
 
 @app.get("/api/settings/pytorch-options")
@@ -361,6 +375,15 @@ def result_detail(run_id: str) -> InferenceResponse:
 @app.post("/api/results/{run_id}/type-decode", response_model=SpikeTypeDecodeResult)
 def decode_result(run_id: str, request: SpikeTypeDecodeRequest) -> SpikeTypeDecodeResult:
     try:
+        try:
+            from .type_decoder import decode_spike_types
+        except ModuleNotFoundError as error:
+            if error.name != "torch" and not (error.name or "").startswith("torch."):
+                raise
+            raise RuntimeError(
+                "PyTorch is not installed. Configure a runtime on the Settings page first."
+            ) from error
+
         features, window_start_sec = results.embedding_arrays(run_id)
         result = decode_spike_types(
             features=features,

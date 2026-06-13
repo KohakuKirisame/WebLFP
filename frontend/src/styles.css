@@ -214,6 +214,8 @@ input:focus, select:focus { border-color: #3b918b; box-shadow: 0 0 0 3px rgba(56
 .performance-alert.poor span { color: #cf7e8b; }
 .performance-alert.good { color: #9fc9c4; border-color: color-mix(in srgb, var(--teal) 28%, var(--border)); background: color-mix(in srgb, var(--teal) 7%, transparent); }
 .performance-alert.good span { color: var(--teal); }
+.performance-alert.pending { color: #d6c69a; border-color: #665b35; background: rgba(92, 76, 34, .2); }
+.performance-alert.pending span { color: #c3a957; }
 .hardware-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
 .hardware-card { min-width: 0; padding: 18px; }
 .hardware-card strong { display: block; min-height: 42px; margin: 10px 0 4px; font-size: 14px; line-height: 1.45; }

@@ -83,15 +83,16 @@ run inference.
 - [uv](https://docs.astral.sh/uv/)
 - Node.js and npm
 
-The first launch creates a local `.venv`, installs Python dependencies from the
-lock file, and builds the frontend. Virtual environments, logs, local runs,
-recordings, installers, and generated arrays are excluded from Git.
+The first launch creates a local `.venv`, installs the base Python dependencies
+from the lock file, and builds the frontend. PyTorch is intentionally not part
+of this initialization. Virtual environments, logs, local runs, recordings,
+installers, and generated arrays are excluded from Git.
 
 ## ⚙️ Configure PyTorch For Your GPU
 
-Before processing data for the first time, open **Settings** and configure
-PyTorch for the actual hardware. Do not assume that the default build can use
-the GPU.
+Before processing data for the first time, open **Settings** and install
+PyTorch for the actual hardware. WebLFP does not install a default PyTorch build
+during project initialization.
 
 - NVIDIA GPU: confirm that the installed driver supports CUDA 13.0 or newer,
   then choose a compatible CUDA PyTorch build shown by WebLFP.

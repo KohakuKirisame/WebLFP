@@ -76,13 +76,14 @@ git lfs pull
 - [uv](https://docs.astral.sh/uv/)
 - Node.js 和 npm
 
-首次启动会创建本地 `.venv`，根据 lock 文件安装 Python 依赖，并构建前端。虚拟环境、
-日志、本地 runs、记录文件、安装包和生成数组均被排除在 Git 之外。
+首次启动会创建本地 `.venv`，根据 lock 文件安装基础 Python 依赖，并构建前端。初始化
+阶段不会安装 PyTorch。虚拟环境、日志、本地 runs、记录文件、安装包和生成数组均被
+排除在 Git 之外。
 
 ## ⚙️ 根据 GPU 配置 PyTorch
 
-首次处理数据前，请先打开**设置**，根据实际硬件配置 PyTorch。不要默认认为初始安装的
-PyTorch 已经能够使用 GPU。
+首次处理数据前，请先打开**设置**，根据实际硬件安装 PyTorch。项目初始化不会预装
+任何 CPU、CUDA 或 ROCm PyTorch 构建。
 
 - NVIDIA GPU：确认当前驱动支持 CUDA 13.0 或更高版本，再选择 WebLFP 显示为兼容的
   CUDA PyTorch 构建。

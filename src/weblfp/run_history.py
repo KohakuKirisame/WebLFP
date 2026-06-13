@@ -4,14 +4,16 @@ import json
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import numpy as np
 from pydantic import BaseModel
 
-from .inference import InferenceResult, compute_umap_3d
 from .profile import project_root
+
+if TYPE_CHECKING:
+    from .inference import InferenceResult
 
 
 class RunSummary(BaseModel):
@@ -132,6 +134,8 @@ class RunStore:
                 umap_3d = np.asarray(arrays["umap_3d"])
                 umap_window_start_sec = np.asarray(arrays["umap_window_start_sec"])
             else:
+                from .inference import compute_umap_3d
+
                 umap_3d, umap_indices = compute_umap_3d(embeddings)
                 umap_window_start_sec = window_start_sec[umap_indices]
             return StoredRunData(

@@ -9,7 +9,7 @@ uses the same checkpoint's downstream head to estimate narrow / non-narrow spike
 Runtime inference does **not** require Spike input, does **not** upload recording
 files, and does **not** include training or fine-tuning code.
 
-📘 Chinese documentation: [README.zh-CN.md](README.zh-CN.md)
+📘 中文文档：[README.zh-CN.md](README.zh-CN.md)
 
 ## ✨ What It Does
 

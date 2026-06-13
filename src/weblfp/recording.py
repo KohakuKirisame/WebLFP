@@ -209,7 +209,7 @@ def _to_channel_time(
     array: np.ndarray,
     channel_axis: Literal["auto", "first", "last"],
 ) -> np.ndarray:
-    array = np.asarray(array)
+    array = _coerce_numeric_array(array)
     if array.ndim != 2:
         raise ValueError(f"Expected a 2D recording array, got shape={array.shape}.")
     if channel_axis == "first":
@@ -225,6 +225,36 @@ def _to_channel_time(
             f"Cannot infer channel axis from shape={array.shape}; choose 'first' or 'last'."
         )
     return array if row_is_channel else array.T
+
+
+def _coerce_numeric_array(array: np.ndarray) -> np.ndarray:
+    array = np.asarray(array)
+    if array.dtype.hasobject:
+        try:
+            if array.ndim == 1:
+                array = np.stack([np.asarray(item) for item in array])
+            array = np.asarray(array, dtype=np.float32)
+        except (TypeError, ValueError) as error:
+            raise ValueError(
+                "Object-based recording arrays must contain a rectangular numeric matrix."
+            ) from error
+    if not np.issubdtype(array.dtype, np.number):
+        raise ValueError(f"Recording array must use a numeric dtype, got {array.dtype}.")
+    return array
+
+
+def _load_npy(path: Path) -> np.ndarray:
+    try:
+        return np.load(path, mmap_mode="r", allow_pickle=False)
+    except ValueError as error:
+        if "Python objects in dtype" not in str(error):
+            raise
+    try:
+        return _coerce_numeric_array(np.load(path, allow_pickle=True))
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "This NPY uses Python objects and cannot be converted to a rectangular numeric matrix."
+        ) from error
 
 
 def _load_npz(path: Path, key: str | None) -> np.ndarray:
@@ -312,7 +342,7 @@ def open_recording(config: SourceConfig) -> RecordingAdapter:
     if recording_format == "npy":
         if config.sampling_rate_hz is None:
             raise ValueError("sampling_rate_hz is required for NPY input.")
-        array = np.load(path, mmap_mode="r", allow_pickle=False)
+        array = _load_npy(path)
         return ArrayRecording(array, path, recording_format, config.sampling_rate_hz, config.channel_axis)
     if recording_format == "npz":
         if config.sampling_rate_hz is None:

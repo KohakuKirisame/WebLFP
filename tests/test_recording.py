@@ -25,6 +25,39 @@ def test_npy_recording_preserves_channel_time_order(tmp_path: Path) -> None:
     np.testing.assert_array_equal(recording.get_traces(10, 20, ["1", "3"]), source[[1, 3], 10:20])
 
 
+def test_npy_object_array_is_converted_to_numeric_matrix(tmp_path: Path) -> None:
+    path = tmp_path / "object-recording.npy"
+    source = np.arange(4 * 100, dtype=np.float32).reshape(4, 100)
+    np.save(path, source.astype(object))
+
+    recording = open_recording(
+        SourceConfig(
+            path=str(path),
+            format="npy",
+            sampling_rate_hz=1000,
+            channel_axis="first",
+        )
+    )
+
+    assert recording.metadata.dtype == "float32"
+    np.testing.assert_array_equal(recording.get_traces(10, 20, ["1", "3"]), source[[1, 3], 10:20])
+
+
+def test_npy_object_array_rejects_non_numeric_content(tmp_path: Path) -> None:
+    path = tmp_path / "object-recording.npy"
+    np.save(path, np.array([[{"value": 1}]], dtype=object))
+
+    with pytest.raises(ValueError, match="rectangular numeric matrix"):
+        open_recording(
+            SourceConfig(
+                path=str(path),
+                format="npy",
+                sampling_rate_hz=1000,
+                channel_axis="first",
+            )
+        )
+
+
 def test_auto_axis_rejects_ambiguous_array(tmp_path: Path) -> None:
     path = tmp_path / "ambiguous.npy"
     np.save(path, np.zeros((32, 32), dtype=np.float32))

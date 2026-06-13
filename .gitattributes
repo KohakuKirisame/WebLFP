@@ -1,2 +1,1 @@
-models/clip-lfp-best/model.pt filter=lfs diff=lfs merge=lfs -text
 models/spike-type-decoder/model.pt filter=lfs diff=lfs merge=lfs -text

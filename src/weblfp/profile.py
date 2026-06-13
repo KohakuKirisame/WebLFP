@@ -12,22 +12,21 @@ from pydantic import BaseModel, Field
 class ModelProfile(BaseModel):
     id: str
     display_name: str
-    model_type: Literal["clip_lfp_inference"]
+    model_type: Literal["lfp_spike_count_presence"]
     checkpoint: str
     checkpoint_sha256: str
     epoch: int
     target_sample_rate_hz: float = Field(gt=0)
     window_sec: float = Field(gt=0)
     hop_sec: float = Field(gt=0)
-    normalization: Literal["robust_zscore_per_window_channel"]
+    normalization: Literal["robust_zscore_per_selected_range_channel"]
     pool: Literal["cls", "mean"]
     embedding_dim: int = Field(gt=0)
-    embedding_normalization: Literal["l2"]
+    embedding_normalization: Literal["none"]
     recommended_channels: int = Field(gt=0)
     max_channels: int = Field(gt=0)
     max_time_samples: int = Field(gt=0)
     architecture: dict[str, Any]
-    projector: dict[str, Any]
     limitations: list[str]
 
     @property
@@ -41,20 +40,13 @@ class ModelProfile(BaseModel):
     def checkpoint_path(self, package_dir: Path) -> Path:
         return package_dir / self.checkpoint
 
-    def inference_config(self) -> dict[str, Any]:
-        return {
-            "encoder": self.architecture,
-            "pool": self.pool,
-            "projector": self.projector,
-        }
-
 
 def project_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
 def default_model_dir() -> Path:
-    return project_root() / "models" / "clip-lfp-best"
+    return project_root() / "models" / "spike-type-decoder"
 
 
 @lru_cache(maxsize=8)

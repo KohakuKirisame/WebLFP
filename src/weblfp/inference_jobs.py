@@ -62,14 +62,14 @@ class InferenceJobStore:
             job = self._items[job_id]
             job.state = "completed"
             job.progress = 100
-            job.message = "隐空间生成完成。"
+            job.message = "LFP feature 生成完成。"
             job.result = result
 
     def fail(self, job_id: str, error: str) -> None:
         with self._lock:
             job = self._items[job_id]
             job.state = "failed"
-            job.message = "隐空间生成失败。"
+            job.message = "LFP feature 生成失败。"
             job.error = error
 
     def cancel(self, job_id: str) -> InferenceJobStatus:

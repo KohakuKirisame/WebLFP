@@ -406,7 +406,7 @@ function App() {
 
   async function infer() {
     setBusy("infer");
-    setOperationProgress({ operation: "infer", percent: 1, label: "生成隐空间", detail: "正在创建推理任务。" });
+    setOperationProgress({ operation: "infer", percent: 1, label: "生成 LFP feature", detail: "正在创建推理任务。" });
     setError("");
     try {
       let job = await requestJson<InferenceJobStatus>("/api/inference-jobs", {
@@ -426,7 +426,7 @@ function App() {
         setOperationProgress({
           operation: "infer",
           percent: job.progress,
-          label: "生成隐空间",
+          label: "生成 LFP feature",
           detail: job.message,
         });
         await new Promise((resolve) => window.setTimeout(resolve, 350));
@@ -435,7 +435,7 @@ function App() {
       if (job.state === "completed" && job.result) {
         setInference(job.result);
         setSpikeTypeResult(null);
-        setOperationProgress({ operation: "infer", percent: 100, label: "生成隐空间", detail: job.message });
+        setOperationProgress({ operation: "infer", percent: 100, label: "生成 LFP feature", detail: job.message });
       } else if (job.state === "cancelled") {
         setOperationProgress(null);
       } else {
@@ -670,7 +670,7 @@ function App() {
           <span className="brand-mark">L</span>
           <div>
             <strong>WebLFP</strong>
-            <span>CLIP-aligned neural representation</span>
+            <span>Unified LFP feature and spike activity decoding</span>
           </div>
         </div>
         <div className="topbar-actions">
@@ -716,7 +716,7 @@ function App() {
           <section className="canvas-heading">
             <div>
               <span className="eyebrow">LOCAL INFERENCE WORKSPACE</span>
-              <h1>{inference ? "隐空间结果" : preview ? "信号预览" : "导入 LFP 记录"}</h1>
+              <h1>{inference ? "LFP feature 结果" : preview ? "信号预览" : "导入 LFP 记录"}</h1>
             </div>
             {metadata && (
               <div className="recording-pill">
@@ -791,7 +791,7 @@ function App() {
                 ))}
               </section>
               <button className="primary-button run-button" disabled={busy !== null} onClick={infer}>
-                {busy === "infer" ? "正在生成隐空间…" : "运行 LFP-only 推理"}
+                {busy === "infer" ? "正在生成 LFP feature…" : "运行 LFP-only 推理"}
               </button>
             </>
           )}
@@ -800,13 +800,13 @@ function App() {
             <>
               <section className="result-metrics">
                 <div className="metric-card surface"><span>窗口</span><strong>{inference.window_count}</strong></div>
-                <div className="metric-card surface"><span>隐空间维度</span><strong>{inference.embedding_dim}</strong></div>
+                <div className="metric-card surface"><span>LFP feature 维度</span><strong>{inference.embedding_dim}</strong></div>
                 <div className="metric-card surface"><span>设备</span><strong>{inference.device.toUpperCase()}</strong></div>
-                <div className="metric-card surface"><span>L2 范数</span><strong>{inference.embedding_norm_min.toFixed(4)}–{inference.embedding_norm_max.toFixed(4)}</strong></div>
+                <div className="metric-card surface"><span>特征范数</span><strong>{inference.embedding_norm_min.toFixed(4)}–{inference.embedding_norm_max.toFixed(4)}</strong></div>
               </section>
               <section className="chart-grid">
                 <div className="surface chart-card">
-                  <div className="section-title"><div><span>LATENT GEOMETRY</span><h2>PCA 二维轨迹</h2></div></div>
+                  <div className="section-title"><div><span>FEATURE GEOMETRY</span><h2>PCA 二维轨迹</h2></div></div>
                   <Chart option={pcaOption} height={340} />
                 </div>
                 <div className="surface chart-card">
@@ -822,11 +822,11 @@ function App() {
               <section className="downstream-panel surface">
                 <div className="section-title">
                   <div><span>DOWNSTREAM TASK</span><h2>窄波 / 非窄波活动解码</h2></div>
-                  <span className="tag">REFERENCE DECODER</span>
+                  <span className="tag">SAME CHECKPOINT HEAD</span>
                 </div>
                 <p className="downstream-note">
-                  按原项目任务定义，对每个 0.2 秒窗口分别估计窄波与非窄波的 presence 概率和 spike count。
-                  解码器权重已内置并校验 SHA-256，无需另外选择分类文件。
+                  当前 LFP 推理已使用统一权重生成 256 维 feature。这里直接把这些 feature 接入同一权重中的
+                  SpikeCountPresenceHead，按原项目任务定义估计窄波与非窄波的 presence 概率和 spike count。
                 </p>
                 <div className="downstream-actions">
                   <span className="downstream-note">设备沿用当前推理设置：{device.toUpperCase()}</span>
@@ -835,8 +835,8 @@ function App() {
                   </button>
                 </div>
                 <div className="compatibility-warning">
-                  这是窗口级活动代理，不是单神经元真实细胞类型。原项目权重包含独立保存的 256 维骨干，
-                  因此该任务在隐空间生成后从同一 LFP 范围重新计算，不直接读取上方展示的 128 维投影。
+                  这是窗口级活动代理，不是单神经元真实细胞类型。结果来自当前 run 已保存的 256 维 LFP feature，
+                  不会重新读取原始记录，也不会使用未训练的线性适配层。
                 </div>
                 {spikeTypeResult && presenceOption && countOption && (
                   <>
@@ -975,13 +975,13 @@ function App() {
               <div><span>Epoch</span><strong>{model?.epoch ?? "-"}</strong></div>
               <div><span>Window</span><strong>{model ? `${model.window_sec} s` : "-"}</strong></div>
               <div><span>Rate</span><strong>{model ? `${model.target_sample_rate_hz} Hz` : "-"}</strong></div>
-              <div><span>Embedding</span><strong>{model ? `${model.embedding_dim} D` : "-"}</strong></div>
+              <div><span>Feature</span><strong>{model ? `${model.embedding_dim} D` : "-"}</strong></div>
             </div>
             <code>{model ? model.checkpoint_sha256.slice(0, 16) : "-"}…</code>
           </div>
 
           {metadata && <button className="secondary-button" onClick={inspect} disabled={busy !== null}>重新读取元数据</button>}
-          <p className="scientific-note">该表示仅在报告所述数据与任务上验证，可部分替代 Spike 表征，不用于重建 Spike 波形。</p>
+          <p className="scientific-note">该 LFP feature 与参考分类头仅在报告所述数据与任务上验证，不用于重建 Spike 波形。</p>
         </aside>
         </div>
       )}

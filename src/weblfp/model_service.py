@@ -6,8 +6,9 @@ from typing import Callable, Literal
 
 import numpy as np
 import torch
+from torch import nn
 
-from .models import CLIPLFPEncoder, load_clip_lfp_encoder
+from .models.lfp_encoder import LFPEncoder
 from .profile import ModelProfile, default_model_dir, load_model_profile, verify_checkpoint
 
 
@@ -29,13 +30,35 @@ def resolve_device(choice: DeviceChoice) -> torch.device:
 def load_runtime(
     package_dir: str | Path | None = None,
     device_choice: DeviceChoice = "auto",
-) -> tuple[CLIPLFPEncoder, ModelProfile, torch.device]:
+) -> tuple[nn.Module, ModelProfile, torch.device]:
     directory = Path(package_dir) if package_dir else default_model_dir()
     profile = load_model_profile(directory)
     checkpoint = verify_checkpoint(directory)
     device = resolve_device(device_choice)
-    model = load_clip_lfp_encoder(checkpoint, profile.inference_config(), device)
+    model = _load_lfp_feature_encoder(checkpoint, profile, device)
     return model, profile, device
+
+
+def _load_lfp_feature_encoder(
+    checkpoint_path: str | Path,
+    profile: ModelProfile,
+    device: torch.device,
+) -> LFPEncoder:
+    model = LFPEncoder(**profile.architecture)
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    if not isinstance(checkpoint, dict):
+        raise ValueError("LFP feature checkpoint must contain an inference package dictionary.")
+    if checkpoint.get("format_version") != 1 or checkpoint.get("model_type") != "spike_type_inference":
+        raise ValueError("Unsupported or non-inference LFP feature checkpoint format.")
+    state = checkpoint.get("feature_extractor")
+    if not isinstance(state, dict):
+        raise ValueError("LFP feature checkpoint is missing feature_extractor.")
+    try:
+        model.load_state_dict(state, strict=True)
+    except RuntimeError as error:
+        raise ValueError(f"LFP feature checkpoint architecture mismatch: {error}") from error
+    model.requires_grad_(False).eval()
+    return model.to(device)
 
 
 def extract_embeddings(
@@ -47,7 +70,7 @@ def extract_embeddings(
 ) -> tuple[np.ndarray, ModelProfile, str]:
     model, profile, device = load_runtime(package_dir, device_choice)
     if progress_callback:
-        progress_callback(0.05, f"模型已加载，正在使用 {device} 生成隐空间。")
+        progress_callback(0.05, f"模型已加载，正在使用 {device} 生成 LFP feature。")
     if windows.ndim != 3:
         raise ValueError(f"Expected [N, C, T] windows, got shape={windows.shape}.")
     if windows.shape[1] > profile.max_channels:
@@ -68,12 +91,18 @@ def extract_embeddings(
             batch = batch.to(device=device, dtype=torch.float32)
             if device.type == "cuda":
                 with torch.autocast(device_type="cuda", dtype=torch.float16):
-                    embedding = model(batch)
+                    embedding = _encode_batch(model, profile, batch)
             else:
-                embedding = model(batch)
+                embedding = _encode_batch(model, profile, batch)
             outputs.append(embedding.float().cpu())
             if progress_callback:
                 completed = min(start + len(batch), len(windows))
                 progress_callback(completed / len(windows), f"正在编码窗口 {completed}/{len(windows)}。")
     values = torch.cat(outputs, dim=0).numpy()
     return np.asarray(values, dtype=np.float32), profile, str(device)
+
+
+def _encode_batch(model: nn.Module, profile: ModelProfile, batch: torch.Tensor) -> torch.Tensor:
+    if not isinstance(model, LFPEncoder):
+        raise TypeError("Unified LFP runtime expected an LFPEncoder.")
+    return model.forward_features(batch, pool=profile.pool)

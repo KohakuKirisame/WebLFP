@@ -10,7 +10,7 @@ from .model_service import DeviceChoice, extract_embeddings
 from .preprocessing import (
     make_windows,
     resample_traces,
-    robust_zscore_per_window_channel,
+    robust_zscore_channels,
 )
 from .profile import ModelProfile, default_model_dir, load_model_profile
 from .recording import SourceConfig, open_recording
@@ -44,7 +44,9 @@ def _pca_2d(values: np.ndarray) -> np.ndarray:
 def _adjacent_similarity(values: np.ndarray) -> np.ndarray:
     if len(values) < 2:
         return np.empty(0, dtype=np.float32)
-    return np.asarray(np.sum(values[:-1] * values[1:], axis=1), dtype=np.float32)
+    norms = np.linalg.norm(values, axis=1, keepdims=True)
+    normalized = values / np.maximum(norms, 1e-12)
+    return np.asarray(np.sum(normalized[:-1] * normalized[1:], axis=1), dtype=np.float32)
 
 
 def run_inference(
@@ -88,11 +90,11 @@ def run_inference(
         source_rate_hz=metadata.sampling_rate_hz,
         target_rate_hz=profile.target_sample_rate_hz,
     )
+    report(0.36, "正在执行所选范围逐通道 Robust z-score。")
+    traces = robust_zscore_channels(traces)
     report(0.4, "正在切分推理窗口。")
     windows, starts = make_windows(traces, profile.window_samples, profile.hop_samples)
-    report(0.48, "正在执行逐窗口 Robust z-score。")
-    windows = robust_zscore_per_window_channel(windows)
-    report(0.54, "正在加载模型并生成隐空间。")
+    report(0.54, "正在加载模型并生成 LFP feature。")
 
     def embedding_progress(progress: float, message: str) -> None:
         report(0.54 + progress * 0.4, message)
@@ -105,7 +107,7 @@ def run_inference(
         progress_callback=embedding_progress,
     )
 
-    report(0.96, "正在整理隐空间可视化结果。")
+    report(0.96, "正在整理 LFP feature 可视化结果。")
     window_start_sec = start_sec + starts / profile.target_sample_rate_hz
     window_end_sec = window_start_sec + profile.window_sec
     result = InferenceResult(
@@ -119,5 +121,5 @@ def run_inference(
         source_sample_rate_hz=metadata.sampling_rate_hz,
         selected_channel_ids=selected,
     )
-    report(1, "隐空间生成完成。")
+    report(1, "LFP feature 生成完成。")
     return result

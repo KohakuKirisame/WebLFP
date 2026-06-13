@@ -339,8 +339,10 @@ def result_detail(run_id: str) -> InferenceResponse:
 @app.post("/api/results/{run_id}/type-decode", response_model=SpikeTypeDecodeResult)
 def decode_result(run_id: str, request: SpikeTypeDecodeRequest) -> SpikeTypeDecodeResult:
     try:
+        features, window_start_sec = results.embedding_arrays(run_id)
         result = decode_spike_types(
-            run_metadata=results.metadata(run_id),
+            features=features,
+            window_start_sec=window_start_sec,
             batch_size=request.batch_size,
             device_choice=request.device,
         )

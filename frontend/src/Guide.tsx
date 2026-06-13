@@ -6,7 +6,7 @@ export default function Guide({ onBack }: { onBack: () => void }) {
           <span className="eyebrow">USER GUIDE</span>
           <h1>给生物学研究人员的 WebLFP 使用说明</h1>
           <p>
-            WebLFP 在本机读取 LFP 记录，生成 CLIP 对齐的隐空间表征。浏览器只负责交互，
+            WebLFP 在本机读取 LFP 记录，生成统一权重的 LFP feature 并可运行参考分类头。浏览器只负责交互，
             数据不会因为选择文件而上传到外部服务。
           </p>
         </div>
@@ -18,8 +18,8 @@ export default function Guide({ onBack }: { onBack: () => void }) {
           <span>01</span>
           <h2>这个工具能做什么</h2>
           <p>
-            只使用 LFP 记录，按模型要求完成预处理、切窗和推理，为每个时间窗生成 128 维表征。
-            该表征可在已验证的下游任务中部分替代 Spike 表征。
+            只使用 LFP 记录，按模型要求完成预处理、切窗和推理，为每个时间窗生成 256 维 LFP feature。
+            该 feature 可直接接入随权重保存的窄波/非窄波 presence 与 count 分类头。
           </p>
           <p className="guide-warning">
             它不重建 Spike 波形，也不是自动诊断或神经元类型判定工具。
@@ -70,7 +70,7 @@ export default function Guide({ onBack }: { onBack: () => void }) {
           <span>06</span>
           <h2>理解结果</h2>
           <p>
-            结果页展示窗口数量、表征维度、运行设备、L2 范数、PCA 二维轨迹和相邻窗口余弦相似度。
+            结果页展示窗口数量、feature 维度、运行设备、特征范数、PCA 二维轨迹和相邻窗口余弦相似度。
             这些图用于观察表征随时间的变化，不应单独解释为生理标签。
           </p>
         </article>
@@ -79,8 +79,8 @@ export default function Guide({ onBack }: { onBack: () => void }) {
           <span>07</span>
           <h2>窄波 / 非窄波活动解码</h2>
           <p>
-            隐空间生成后，可以运行原项目的参考下游任务。系统按 0.2 秒窗口分别给出窄波和
-            非窄波的 presence 概率，以及该窗口内的预测 count。权重已随应用放置，无需选择额外文件。
+            LFP feature 生成后，可以运行原项目的参考下游任务。系统直接使用同一权重中的分类头，
+            按 0.2 秒窗口分别给出窄波和非窄波的 presence 概率，以及该窗口内的预测 count。
           </p>
           <p className="guide-warning">
             结果表示窗口内两类波形活动的模型估计，不能直接等同于单神经元真实细胞类型。

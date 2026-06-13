@@ -10,11 +10,8 @@ import torch
 from pydantic import BaseModel, Field
 
 from .model_service import DeviceChoice, resolve_device
-from .models.lfp_encoder import LFPEncoder
 from .models.spike_count import SpikeCountPresenceHead
-from .preprocessing import make_windows, resample_traces, robust_zscore_channels
 from .profile import project_root, sha256_file
-from .recording import SourceConfig, open_recording
 
 
 class SpikeTypeLabel(BaseModel):
@@ -94,7 +91,7 @@ def load_decoder_profile(package_dir: str | Path | None = None) -> SpikeTypeDeco
 def load_decoder_runtime(
     package_dir: str | Path | None = None,
     device_choice: DeviceChoice = "auto",
-) -> tuple[LFPEncoder, SpikeCountPresenceHead, SpikeTypeDecoderProfile, torch.device]:
+) -> tuple[SpikeCountPresenceHead, SpikeTypeDecoderProfile, torch.device]:
     directory = Path(package_dir) if package_dir else default_decoder_dir()
     profile = load_decoder_profile(directory)
     checkpoint = directory / profile.checkpoint
@@ -117,66 +114,56 @@ def load_decoder_runtime(
     if not isinstance(feature_state, dict) or not isinstance(head_state, dict):
         raise ValueError("Spike type decoder checkpoint is missing model state dictionaries.")
 
-    feature_extractor = LFPEncoder(**profile.architecture)
     head = SpikeCountPresenceHead(
         feature_dim=profile.feature_dim,
         hidden_dim=profile.hidden_dim,
         dropout=profile.dropout,
     )
     try:
-        feature_extractor.load_state_dict(feature_state, strict=True)
         head.load_state_dict(head_state, strict=True)
     except RuntimeError as error:
         raise ValueError(f"Spike type decoder architecture mismatch: {error}") from error
 
     device = resolve_device(device_choice)
-    feature_extractor.requires_grad_(False).to(device).eval()
     head.requires_grad_(False).to(device).eval()
-    return feature_extractor, head, profile, device
+    return head, profile, device
 
 
 def decode_spike_types(
-    run_metadata: dict[str, Any],
+    features: np.ndarray,
+    window_start_sec: np.ndarray,
     batch_size: int = 32,
     device_choice: DeviceChoice = "auto",
     package_dir: str | Path | None = None,
 ) -> SpikeTypeDecodeResult:
     directory = Path(package_dir) if package_dir else default_decoder_dir()
     profile = load_decoder_profile(directory)
-    source = SourceConfig.model_validate(run_metadata["source"])
-    start_sec = float(run_metadata["start_sec"])
-    end_sec = float(run_metadata["end_sec"])
-    selected = [str(value) for value in run_metadata["selected_channel_ids"]]
-    if len(selected) > profile.max_channels:
-        raise ValueError(f"The decoder supports at most {profile.max_channels} channels.")
+    features = np.asarray(features, dtype=np.float32)
+    window_start_sec = np.asarray(window_start_sec, dtype=np.float64)
+    if features.ndim != 2:
+        raise ValueError(f"Expected LFP features with shape [N, D], got {features.shape}.")
+    if len(features) == 0:
+        raise ValueError("No LFP features are available for downstream decoding.")
+    if features.shape[1] != profile.feature_dim:
+        raise ValueError(
+            f"The decoder expects {profile.feature_dim}D LFP features from the unified "
+            f"checkpoint, got {features.shape[1]}D."
+        )
+    if window_start_sec.ndim != 1 or len(window_start_sec) != len(features):
+        raise ValueError("window_start_sec must be a 1D array with the same length as features.")
 
-    recording = open_recording(source)
-    metadata = recording.metadata
-    start_frame = round(start_sec * metadata.sampling_rate_hz)
-    end_frame = round(end_sec * metadata.sampling_rate_hz)
-    traces = recording.get_traces(start_frame, end_frame, selected)
-    traces = resample_traces(
-        traces,
-        source_rate_hz=metadata.sampling_rate_hz,
-        target_rate_hz=profile.target_sample_rate_hz,
-    )
-    traces = robust_zscore_channels(traces)
-    windows, starts = make_windows(traces, profile.window_samples, profile.hop_samples)
-
-    feature_extractor, head, profile, device = load_decoder_runtime(directory, device_choice)
+    head, profile, device = load_decoder_runtime(directory, device_choice)
     count_batches: list[torch.Tensor] = []
     presence_batches: list[torch.Tensor] = []
     with torch.inference_mode():
-        for offset in range(0, len(windows), batch_size):
-            batch = torch.from_numpy(np.ascontiguousarray(windows[offset : offset + batch_size]))
+        for offset in range(0, len(features), batch_size):
+            batch = torch.from_numpy(np.ascontiguousarray(features[offset : offset + batch_size]))
             batch = batch.to(device=device, dtype=torch.float32)
             if device.type == "cuda":
                 with torch.autocast(device_type="cuda", dtype=torch.float16):
-                    features = feature_extractor.forward_features(batch, pool=profile.pool)
-                    counts, presence_probabilities = head.predict(features)
+                    counts, presence_probabilities = head.predict(batch)
             else:
-                features = feature_extractor.forward_features(batch, pool=profile.pool)
-                counts, presence_probabilities = head.predict(features)
+                counts, presence_probabilities = head.predict(batch)
             count_batches.append(counts.float().cpu())
             presence_batches.append(presence_probabilities.float().cpu())
 
@@ -184,7 +171,6 @@ def decode_spike_types(
     probabilities = torch.cat(presence_batches).numpy()
     rounded = np.maximum(np.rint(counts), 0).astype(np.int64)
     presence = probabilities >= profile.presence_threshold
-    window_start_sec = start_sec + starts / profile.target_sample_rate_hz
     label_ids = [label.id for label in profile.labels]
 
     return SpikeTypeDecodeResult(

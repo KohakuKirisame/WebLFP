@@ -9,7 +9,32 @@ from weblfp.profile import default_model_dir
 from weblfp.recording import SourceConfig
 
 
-def test_best_clip_checkpoint_produces_normalized_embeddings(tmp_path: Path) -> None:
+TRAINING_STATE_TOKENS = {
+    "optimizer",
+    "scheduler",
+    "scaler",
+    "teacher",
+    "student",
+    "decoder",
+    "mask_token",
+    "global_step",
+    "best_val_loss",
+}
+
+
+def _assert_no_training_state(payload: dict[str, object]) -> None:
+    assert TRAINING_STATE_TOKENS.isdisjoint(payload)
+    for section_name in ("feature_extractor", "head"):
+        section = payload[section_name]
+        assert isinstance(section, dict)
+        assert not any(
+            token in key.lower()
+            for key in section
+            for token in TRAINING_STATE_TOKENS
+        )
+
+
+def test_unified_checkpoint_produces_lfp_features(tmp_path: Path) -> None:
     rng = np.random.default_rng(42)
     path = tmp_path / "synthetic-lfp.npy"
     np.save(path, rng.normal(size=(4, 750)).astype(np.float32))
@@ -28,21 +53,21 @@ def test_best_clip_checkpoint_produces_normalized_embeddings(tmp_path: Path) -> 
         device_choice="cpu",
     )
 
-    assert result.embeddings.shape == (4, 128)
-    np.testing.assert_allclose(np.linalg.norm(result.embeddings, axis=1), 1, atol=1e-5)
-    assert result.profile.epoch == 20
+    assert result.embeddings.shape == (2, 256)
+    assert np.all(np.isfinite(result.embeddings))
+    assert result.profile.epoch == 9
     assert result.device == "cpu"
 
 
-def test_clip_checkpoint_is_locked_for_inference_only() -> None:
+def test_unified_checkpoint_is_locked_for_inference_only() -> None:
     payload = torch.load(
         default_model_dir() / "model.pt",
         map_location="cpu",
         weights_only=True,
     )
-    assert set(payload) == {"format_version", "model_type", "state_dict"}
-    assert payload["model_type"] == "clip_lfp_inference"
-    assert not any("decoder" in key or "mask_token" in key for key in payload["state_dict"])
+    assert set(payload) == {"format_version", "model_type", "feature_extractor", "head"}
+    assert payload["model_type"] == "spike_type_inference"
+    _assert_no_training_state(payload)
 
     model, _, _ = load_runtime(device_choice="cpu")
     assert all(not parameter.requires_grad for parameter in model.parameters())

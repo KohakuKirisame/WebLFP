@@ -42,7 +42,6 @@ docs/PRODUCT.md
 *.pth
 *.ckpt
 *.safetensors
-!models/clip-lfp-best/model.pt
 !models/spike-type-decoder/model.pt
 checkpoints/
 outputs/

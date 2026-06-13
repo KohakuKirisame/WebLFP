@@ -91,7 +91,7 @@ export default function History({
         <div>
           <span>LOCAL RUN HISTORY</span>
           <h1>历史记录</h1>
-          <p>已完成的 runs 保存在本机，可重新查看隐空间图形并再次导出结果。</p>
+          <p>已完成的 runs 保存在本机，可重新查看 LFP feature 图形并再次导出结果。</p>
         </div>
         <button className="back-button" onClick={onBack}>返回工作区</button>
       </header>
@@ -116,7 +116,7 @@ export default function History({
               <div className="history-metrics">
                 <div><span>范围</span><strong>{run.start_sec.toFixed(2)}–{run.end_sec.toFixed(2)} s</strong></div>
                 <div><span>窗口</span><strong>{run.window_count}</strong></div>
-                <div><span>隐空间</span><strong>{run.embedding_dim} D</strong></div>
+                <div><span>Feature</span><strong>{run.embedding_dim} D</strong></div>
                 <div><span>设备</span><strong>{run.device.toUpperCase()}</strong></div>
               </div>
               <button className="primary-button" disabled={opening !== ""} onClick={() => void openRun(run.run_id)}>

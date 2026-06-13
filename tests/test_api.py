@@ -27,8 +27,8 @@ def test_health_and_model_profile_are_available() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["checkpoint_available"] is True
-    assert payload["embedding_dim"] == 128
-    assert payload["epoch"] == 20
+    assert payload["embedding_dim"] == 256
+    assert payload["epoch"] == 9
 
 
 def test_pytorch_install_requires_explicit_confirmation() -> None:

@@ -59,7 +59,7 @@ const englishSections: GuideSection[] = [
   {
     title: "Choose time and channels",
     paragraphs: [
-      "Start with a representative interval of up to 300 seconds per preview. Set start and end time in seconds, search and select channel IDs from the recording metadata, and choose the inference device: Auto, CPU, or CUDA.",
+      "After inspection, the full recording is selected by default with no fixed processing-duration limit. You can shorten the start and end time in seconds, search and select channel IDs from the recording metadata, and choose the inference device: Auto, CPU, or CUDA.",
       "More channels increase memory and GPU-memory use. Begin with a small representative set.",
     ],
   },
@@ -146,7 +146,7 @@ const chineseSections: GuideSection[] = [
   },
   {
     title: "选择时间和通道",
-    paragraphs: ["建议先选择代表性片段，单次预览最长 300 秒。设置开始和结束时间（秒），在搜索框中从元数据返回的通道 ID 里多选通道，并选择自动、CPU 或 CUDA 推理设备。", "通道过多会增加内存和显存占用，初次检查可先使用少量代表性通道。"],
+    paragraphs: ["检查记录后默认选择完整记录，不设置固定的单次处理时长上限。可以手动缩短开始和结束时间（秒），在搜索框中从元数据返回的通道 ID 里多选通道，并选择自动、CPU 或 CUDA 推理设备。", "长记录和较多通道会增加内存、显存占用与处理时间；需要快速检查细节时可先缩短处理范围。"],
   },
   {
     title: "预览处理结果",

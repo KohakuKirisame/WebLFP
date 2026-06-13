@@ -87,7 +87,7 @@ def test_stream_endpoint_returns_empty_options_for_array_recording(tmp_path: Pat
 
 def test_preview_covers_the_full_requested_time_range(tmp_path: Path) -> None:
     path = tmp_path / "long-recording.npy"
-    time = np.arange(301 * 1875, dtype=np.float32) / 1875
+    time = np.arange(302 * 1875, dtype=np.float32) / 1875
     np.save(path, np.stack([np.sin(2 * np.pi * 8 * time), np.cos(2 * np.pi * 12 * time)]))
 
     response = client.post(
@@ -95,7 +95,7 @@ def test_preview_covers_the_full_requested_time_range(tmp_path: Path) -> None:
         json={
             "source": _source(path),
             "start_sec": 1,
-            "duration_sec": 300,
+            "duration_sec": 301,
             "max_points": 1200,
         },
     )
@@ -103,7 +103,7 @@ def test_preview_covers_the_full_requested_time_range(tmp_path: Path) -> None:
     assert response.status_code == 200
     times = response.json()["times_sec"]
     assert times[0] == 1
-    assert times[-1] > 300.9
+    assert times[-1] > 301.9
 
 
 def test_inference_reuses_segment_loaded_by_preview(monkeypatch, tmp_path: Path) -> None:

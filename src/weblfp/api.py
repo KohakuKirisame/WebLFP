@@ -42,7 +42,7 @@ class InspectRequest(BaseModel):
 class PreviewRequest(BaseModel):
     source: SourceConfig
     start_sec: float = Field(default=0, ge=0)
-    duration_sec: float = Field(default=2, gt=0, le=300)
+    duration_sec: float = Field(default=2, gt=0)
     channel_ids: list[str] | None = None
     max_points: int = Field(default=1200, ge=100, le=5000)
 

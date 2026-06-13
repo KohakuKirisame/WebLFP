@@ -1,5 +1,6 @@
 import { LineChart, ScatterChart } from "echarts/charts";
 import {
+  DataZoomComponent,
   GridComponent,
   LegendComponent,
   TooltipComponent,
@@ -18,6 +19,7 @@ import Settings, { type ThemeMode } from "./Settings";
 echarts.use([
   LineChart,
   ScatterChart,
+  DataZoomComponent,
   GridComponent,
   LegendComponent,
   TooltipComponent,
@@ -152,8 +154,6 @@ const formats = [
   "alphaomega",
   "nwb",
 ];
-const maxPreviewDurationSec = 300;
-
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
   const payload = await response.json();
@@ -243,7 +243,7 @@ function App() {
   const [inference, setInference] = useState<Inference | null>(null);
   const [channels, setChannels] = useState<string[]>([]);
   const [startSec, setStartSec] = useState(0);
-  const [endSec, setEndSec] = useState(10);
+  const [endSec, setEndSec] = useState(0);
   const [device, setDevice] = useState("auto");
   const [previewMode, setPreviewMode] = useState<"raw" | "normalized">("normalized");
   const [streamOptions, setStreamOptions] = useState<StreamOption[]>([]);
@@ -389,7 +389,7 @@ function App() {
       const recommended = value.channel_ids.slice(0, model?.recommended_channels ?? 4);
       setChannels(recommended);
       setStartSec(0);
-      setEndSec(Math.min(10, value.duration_sec));
+      setEndSec(value.duration_sec);
       setOperationProgress({ operation: "inspect", percent: 100, label: chinese ? "读取记录" : "Read recording", detail: chinese ? "记录元数据读取完成。" : "Recording metadata is ready." });
     } catch (reason) {
       setError((reason as Error).message);
@@ -409,10 +409,6 @@ function App() {
       setError(chinese ? "结束时间必须大于开始时间。" : "End time must be greater than start time.");
       return;
     }
-    if (durationSec > maxPreviewDurationSec) {
-      setError(chinese ? "单次预览最长支持 300 秒。" : "A single preview can cover at most 300 seconds.");
-      return;
-    }
     setBusy("preview");
     setOperationProgress({ operation: "preview", percent: 6, label: chinese ? "读取与处理" : "Read and preprocess", detail: chinese ? "正在读取选定片段并执行预处理。" : "Reading and preprocessing the selected interval." });
     setError("");
@@ -425,6 +421,7 @@ function App() {
           start_sec: startSec,
           duration_sec: Math.max(0.2, durationSec),
           channel_ids: selectedChannels.length ? selectedChannels : null,
+          max_points: 5000,
         }),
       });
       setPreview(value);
@@ -532,7 +529,28 @@ function App() {
       backgroundColor: "transparent",
       tooltip: { trigger: "axis", valueFormatter: (value: unknown) => Number(value).toFixed(3) },
       legend: { top: 0, textStyle: { color: "#82909d" } },
-      grid: { left: 56, right: 18, top: 42, bottom: 42 },
+      grid: { left: 56, right: 18, top: 42, bottom: 76 },
+      dataZoom: [
+        {
+          type: "inside",
+          xAxisIndex: 0,
+          filterMode: "none",
+          zoomOnMouseWheel: true,
+          moveOnMouseMove: true,
+        },
+        {
+          type: "slider",
+          xAxisIndex: 0,
+          filterMode: "none",
+          bottom: 10,
+          height: 18,
+          borderColor: "#25343e",
+          backgroundColor: "rgba(11, 19, 25, 0.45)",
+          fillerColor: "rgba(56, 198, 184, 0.18)",
+          handleStyle: { color: "#38c6b8", borderColor: "#38c6b8" },
+          textStyle: { color: "#71808d" },
+        },
+      ],
       xAxis: {
         type: "category",
         data: preview.times_sec.map((value) => value.toFixed(3)),
@@ -830,6 +848,7 @@ function App() {
                   </div>
                 </div>
                 <Chart option={previewOption} height={390} />
+                <p className="chart-help">{chinese ? "拖动下方滑块或在图中滚动鼠标滚轮以缩放时间轴。" : "Drag the slider or use the mouse wheel over the chart to zoom the time axis."}</p>
               </section>
               <section className="process-strip surface">
                 {(chinese ? ["读取", "通道选择", "重采样至 1875 Hz", "0.2 s 窗口", "Robust z-score"] : ["Read", "Select channels", "Resample to 1875 Hz", "0.2 s windows", "Robust z-score"]).map((item, index) => (
@@ -1020,7 +1039,7 @@ function App() {
               <Field label={chinese ? "开始 / s" : "Start / s"}><input type="number" step="0.1" value={startSec} onChange={(event) => setStartSec(Number(event.target.value))} /></Field>
               <Field label={chinese ? "结束 / s" : "End / s"}><input type="number" step="0.1" value={endSec} onChange={(event) => setEndSec(Number(event.target.value))} /></Field>
             </div>
-            <span className="field-hint">{chinese ? "单次预览最长 300 秒。" : "Maximum 300 seconds per preview."}</span>
+            <span className="field-hint">{chinese ? "检查记录后默认选择完整记录；可手动缩短处理范围。" : "The full recording is selected after inspection. You can shorten the processing range manually."}</span>
           </div>
           <Field label={chinese ? "通道 ID" : "Channel IDs"} hint={chinese ? "搜索并多选记录中实际存在的通道；检查记录后默认选择推荐通道。" : "Search and select channel IDs found in the recording. Recommended channels are selected after inspection."}>
             <ChannelMultiSelect

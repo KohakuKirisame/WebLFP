@@ -609,7 +609,17 @@ function App() {
         max: Math.max(1, inference.umap_3d.length - 1),
         dimension: 3,
         show: false,
-        inRange: { color: ["#23b5a9", "#6f7bf7", "#b56ee8"] },
+        inRange: {
+          color: [
+            "#1f5eff",
+            "#00c8ff",
+            "#00d97e",
+            "#f4df30",
+            "#ff8a1f",
+            "#f2385a",
+            "#b025e8",
+          ],
+        },
       },
       xAxis3D: {
         type: "value",
@@ -655,8 +665,9 @@ function App() {
       },
       series: [{
         type: "scatter3D",
-        symbolSize: 6,
+        symbolSize: 8,
         data: inference.umap_3d.map((point, index) => [point[0], point[1], point[2], index]),
+        itemStyle: { opacity: 1 },
         emphasis: { itemStyle: { color: "#ffffff" } },
       }],
     } as EChartsCoreOption;

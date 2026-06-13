@@ -58,6 +58,41 @@ def test_npy_object_array_rejects_non_numeric_content(tmp_path: Path) -> None:
         )
 
 
+def test_mat_clfp_channels_are_discovered_and_stacked(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "recording.mat"
+    path.touch()
+    first = np.arange(100, dtype=np.float32)
+    second = first + 100
+
+    monkeypatch.setattr(
+        "weblfp.recording.scipy.io.loadmat",
+        lambda _: {
+            "__header__": "MATLAB 5.0",
+            "CLFP_002\x00": second.reshape(-1, 1),
+            "CLFP_002_Gain": np.array([[1.0]]),
+            "CLFP_001\x00": first.reshape(1, -1),
+            "CLFP_001_KHz": np.array([[1.0]]),
+            "CSPK_001\x00": np.ones((1, 100), dtype=np.float32),
+            "SF_KHz": np.array([[1.0]]),
+        },
+    )
+
+    recording = open_recording(
+        SourceConfig(
+            path=str(path),
+            format="mat",
+            sampling_rate_hz=1000,
+        )
+    )
+
+    assert recording.metadata.channel_ids == ["CLFP_001", "CLFP_002"]
+    assert recording.metadata.num_channels == 2
+    np.testing.assert_array_equal(recording.get_traces(10, 20), np.stack([first, second])[:, 10:20])
+
+
 def test_auto_axis_rejects_ambiguous_array(tmp_path: Path) -> None:
     path = tmp_path / "ambiguous.npy"
     np.save(path, np.zeros((32, 32), dtype=np.float32))

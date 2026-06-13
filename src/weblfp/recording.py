@@ -121,14 +121,19 @@ class ArrayRecording(RecordingAdapter):
         recording_format: str,
         sampling_rate_hz: float,
         channel_axis: Literal["auto", "first", "last"],
+        channel_ids: list[str] | None = None,
     ) -> None:
         self._array = _to_channel_time(array, channel_axis)
         channel_count, sample_count = self._array.shape
+        if channel_ids is not None and len(channel_ids) != channel_count:
+            raise ValueError(
+                f"Expected {channel_count} channel IDs for the recording array, got {len(channel_ids)}."
+            )
         self.metadata = RecordingMetadata(
             path=str(path),
             format=recording_format,
             sampling_rate_hz=float(sampling_rate_hz),
-            channel_ids=[str(index) for index in range(channel_count)],
+            channel_ids=channel_ids or [str(index) for index in range(channel_count)],
             num_channels=channel_count,
             num_samples=sample_count,
             duration_sec=sample_count / sampling_rate_hz,
@@ -268,7 +273,38 @@ def _load_npz(path: Path, key: str | None) -> np.ndarray:
         return np.asarray(archive[selected])
 
 
-def _load_mat(path: Path, key: str | None) -> np.ndarray:
+def _clean_mat_key(name: str) -> str:
+    return name.rstrip("\x00")
+
+
+def _is_clfp_channel(name: str) -> bool:
+    parts = _clean_mat_key(name).split("_")
+    return len(parts) == 2 and parts[0] == "CLFP" and parts[1].isdigit()
+
+
+def _stack_clfp_channels(arrays: dict[str, np.ndarray]) -> tuple[np.ndarray, list[str]]:
+    channels = sorted(
+        ((int(_clean_mat_key(name).split("_")[1]), name, value) for name, value in arrays.items()),
+        key=lambda item: item[0],
+    )
+    vectors: list[np.ndarray] = []
+    channel_ids: list[str] = []
+    for _, name, value in channels:
+        vector = np.asarray(value).squeeze()
+        if vector.ndim != 1:
+            raise ValueError(
+                f"MAT channel {_clean_mat_key(name)!r} must be a vector, got shape={value.shape}."
+            )
+        vectors.append(_coerce_numeric_array(vector.reshape(1, -1))[0])
+        channel_ids.append(_clean_mat_key(name))
+    try:
+        return np.stack(vectors), channel_ids
+    except ValueError as error:
+        lengths = {channel_id: vector.size for channel_id, vector in zip(channel_ids, vectors, strict=True)}
+        raise ValueError(f"CLFP channels have different sample counts: {lengths}.") from error
+
+
+def _load_mat(path: Path, key: str | None) -> tuple[np.ndarray, list[str] | None]:
     try:
         values = scipy.io.loadmat(path)
         arrays = {
@@ -283,12 +319,29 @@ def _load_mat(path: Path, key: str | None) -> np.ndarray:
                 for name, value in file.items()
                 if isinstance(value, h5py.Dataset)
             }
-    selected = key or (next(iter(arrays)) if len(arrays) == 1 else None)
+    if key is not None:
+        matching_key = next(
+            (name for name in arrays if name == key or _clean_mat_key(name) == key),
+            None,
+        )
+        if matching_key is None:
+            available = sorted(_clean_mat_key(name) for name in arrays)
+            raise ValueError(f"data_key={key!r} not found; available keys: {available}.")
+        return arrays[matching_key], None
+
+    clfp_arrays = {name: value for name, value in arrays.items() if _is_clfp_channel(name)}
+    if clfp_arrays:
+        return _stack_clfp_channels(clfp_arrays)
+
+    selected = next(iter(arrays)) if len(arrays) == 1 else None
     if selected is None:
-        raise ValueError(f"MAT contains multiple arrays; choose data_key from {sorted(arrays)}.")
-    if selected not in arrays:
-        raise ValueError(f"data_key={selected!r} not found; available keys: {sorted(arrays)}.")
-    return arrays[selected]
+        candidates = sorted(
+            _clean_mat_key(name)
+            for name, value in arrays.items()
+            if np.asarray(value).size > 1
+        )
+        raise ValueError(f"MAT contains multiple arrays; choose data_key from {candidates}.")
+    return arrays[selected], None
 
 
 def detect_format(path: Path) -> RecordingFormat:
@@ -352,8 +405,16 @@ def open_recording(config: SourceConfig) -> RecordingAdapter:
     if recording_format == "mat":
         if config.sampling_rate_hz is None:
             raise ValueError("sampling_rate_hz is required for MAT input.")
-        array = _load_mat(path, config.data_key)
-        return ArrayRecording(array, path, recording_format, config.sampling_rate_hz, config.channel_axis)
+        array, channel_ids = _load_mat(path, config.data_key)
+        channel_axis = "first" if channel_ids is not None else config.channel_axis
+        return ArrayRecording(
+            array,
+            path,
+            recording_format,
+            config.sampling_rate_hz,
+            channel_axis,
+            channel_ids,
+        )
 
     if recording_format == "binary":
         missing = [

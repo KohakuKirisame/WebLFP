@@ -1,0 +1,76 @@
+# Local agent instructions
+AGENTS.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Frontend
+node_modules/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local configuration and logs
+.env
+.env.*
+!.env.example
+*.log
+.weblfp/
+
+# Local development references
+docs/PRODUCT.md
+
+# Model weights and generated runs
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+!models/clip-lfp-best/model.pt
+!models/spike-type-decoder/model.pt
+checkpoints/
+outputs/
+runs/
+
+# Installers and distributable package archives
+*.exe
+*.msi
+*.whl
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+*.deb
+*.rpm
+*.dmg
+
+# Electrophysiology data and derived arrays
+data/
+*.npy
+*.npz
+*.mat
+*.nwb
+*.plx
+*.pl2
+*.mpx
+*.rhd
+*.rhs
+*.bin
+*.dat

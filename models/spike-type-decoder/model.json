@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "id": "reference-spike-type-decoder-epoch-009",
+  "display_name": "Reference narrow / non-narrow decoder",
+  "model_type": "lfp_spike_count_presence",
+  "checkpoint": "model.pt",
+  "checkpoint_sha256": "0a68f7ce165eb52aaffda759146ea8be438de6b010aee731e19a36bbe8305809",
+  "epoch": 9,
+  "target_sample_rate_hz": 1875.0,
+  "window_sec": 0.2,
+  "hop_sec": 0.2,
+  "normalization": "robust_zscore_per_selected_range_channel",
+  "pool": "cls",
+  "presence_threshold": 0.5,
+  "recommended_channels": 4,
+  "max_channels": 16,
+  "max_time_samples": 512,
+  "feature_dim": 256,
+  "hidden_dim": 256,
+  "dropout": 0.1,
+  "labels": [
+    {"id": "narrow", "name": "窄波"},
+    {"id": "non_narrow", "name": "非窄波"}
+  ],
+  "architecture": {
+    "time_patch_size": 8,
+    "channel_pad_multiple": 1,
+    "max_channels": 16,
+    "max_time_patches": 64,
+    "embed_dim": 256,
+    "depth": 16,
+    "num_heads": 8,
+    "mlp_ratio": 4.0,
+    "pad_value": 0.0
+  },
+  "reference_metrics": {
+    "presence_micro_accuracy": 0.9532,
+    "presence_any_accuracy": 0.9530,
+    "narrow_f1": 0.8127,
+    "non_narrow_f1": 0.7272,
+    "both_type_exact_count_accuracy": 0.8612,
+    "total_count_exact_accuracy": 0.8715,
+    "total_count_mae": 0.2397
+  },
+  "limitations": [
+    "输出是每个 0.2 秒窗口内窄波与非窄波活动的模型估计，不是单神经元真实细胞类型判定。",
+    "参考指标来自报告中的 KA 慢性癫痫小鼠海马数据，不能直接外推到其他物种、脑区或实验条件。",
+    "该解码器使用原项目随下游头保存的 256 维骨干，不直接读取当前页面展示的 128 维 CLIP 投影。"
+  ]
+}

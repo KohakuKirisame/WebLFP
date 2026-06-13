@@ -13,7 +13,8 @@ from .preprocessing import (
     robust_zscore_channels,
 )
 from .profile import ModelProfile, default_model_dir, load_model_profile
-from .recording import SourceConfig, open_recording
+from .recording import SourceConfig
+from .segment_cache import TraceSegmentCache
 
 
 @dataclass
@@ -58,6 +59,7 @@ def run_inference(
     device_choice: DeviceChoice = "auto",
     package_dir: str | Path | None = None,
     progress_callback: Callable[[float, str], None] | None = None,
+    segment_cache: TraceSegmentCache | None = None,
 ) -> InferenceResult:
     def report(progress: float, message: str) -> None:
         if progress_callback:
@@ -66,24 +68,27 @@ def run_inference(
     report(0.03, "正在读取模型配置。")
     directory = Path(package_dir) if package_dir else default_model_dir()
     profile = load_model_profile(directory)
-    report(0.08, "正在打开 LFP 记录。")
-    recording = open_recording(source)
-    metadata = recording.metadata
-
-    if start_sec < 0 or end_sec <= start_sec:
-        raise ValueError("Inference range must satisfy 0 <= start_sec < end_sec.")
-    if end_sec > metadata.duration_sec + 1e-9:
-        raise ValueError(
-            f"end_sec={end_sec} exceeds recording duration {metadata.duration_sec:.6f} s."
-        )
-    selected = channel_ids or metadata.channel_ids[: profile.recommended_channels]
-    if len(selected) > profile.max_channels:
+    if channel_ids is not None and len(channel_ids) > profile.max_channels:
         raise ValueError(f"At most {profile.max_channels} channels can be selected.")
 
-    start_frame = round(start_sec * metadata.sampling_rate_hz)
-    end_frame = round(end_sec * metadata.sampling_rate_hz)
-    report(0.18, "正在读取所选通道和时间范围。")
-    traces = recording.get_traces(start_frame, end_frame, selected)
+    report(0.08, "正在读取或复用所选 LFP 片段。")
+    cache = segment_cache or TraceSegmentCache()
+    segment, cache_hit = cache.get(
+        source=source,
+        start_sec=start_sec,
+        end_sec=end_sec,
+        channel_ids=channel_ids,
+        default_channel_count=profile.recommended_channels,
+    )
+    metadata = segment.metadata
+    selected = segment.channel_ids
+    if len(selected) > profile.max_channels:
+        raise ValueError(f"At most {profile.max_channels} channels can be selected.")
+    traces = segment.traces
+    report(
+        0.3 if cache_hit else 0.18,
+        "已从内存复用所选片段。" if cache_hit else "所选片段已读取并缓存到内存。",
+    )
     report(0.3, "正在按模型采样率重采样。")
     traces = resample_traces(
         traces,

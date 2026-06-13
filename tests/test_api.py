@@ -4,7 +4,11 @@ import numpy as np
 from fastapi.testclient import TestClient
 
 from weblfp.api import app
+from weblfp.inference import run_inference
+from weblfp.profile import load_model_profile
+from weblfp.recording import SourceConfig, open_recording
 from weblfp.run_history import RunStore
+from weblfp.segment_cache import TraceSegmentCache
 
 
 client = TestClient(app)
@@ -83,23 +87,59 @@ def test_stream_endpoint_returns_empty_options_for_array_recording(tmp_path: Pat
 
 def test_preview_covers_the_full_requested_time_range(tmp_path: Path) -> None:
     path = tmp_path / "long-recording.npy"
-    time = np.arange(50 * 1875, dtype=np.float32) / 1875
+    time = np.arange(301 * 1875, dtype=np.float32) / 1875
     np.save(path, np.stack([np.sin(2 * np.pi * 8 * time), np.cos(2 * np.pi * 12 * time)]))
 
     response = client.post(
         "/api/preview",
         json={
             "source": _source(path),
-            "start_sec": 10,
-            "duration_sec": 30,
+            "start_sec": 1,
+            "duration_sec": 300,
             "max_points": 1200,
         },
     )
 
     assert response.status_code == 200
     times = response.json()["times_sec"]
-    assert times[0] == 10
-    assert times[-1] > 39.9
+    assert times[0] == 1
+    assert times[-1] > 300.9
+
+
+def test_inference_reuses_segment_loaded_by_preview(monkeypatch, tmp_path: Path) -> None:
+    path = tmp_path / "recording.npy"
+    np.save(path, np.ones((4, 750), dtype=np.float32))
+    source = SourceConfig.model_validate(_source(path))
+    open_count = 0
+
+    def counting_open(config: SourceConfig):
+        nonlocal open_count
+        open_count += 1
+        return open_recording(config)
+
+    cache = TraceSegmentCache(opener=counting_open)
+    monkeypatch.setattr("weblfp.api.trace_segments", cache)
+    preview_response = client.post(
+        "/api/preview",
+        json={"source": _source(path), "start_sec": 0, "duration_sec": 0.4},
+    )
+
+    def fake_extract(windows, *, package_dir, **_):
+        profile = load_model_profile(package_dir)
+        return np.zeros((len(windows), profile.embedding_dim), dtype=np.float32), profile, "cpu"
+
+    monkeypatch.setattr("weblfp.inference.extract_embeddings", fake_extract)
+    run_inference(
+        source=source,
+        start_sec=0,
+        end_sec=0.4,
+        channel_ids=None,
+        device_choice="cpu",
+        segment_cache=cache,
+    )
+
+    assert preview_response.status_code == 200
+    assert open_count == 1
 
 
 def test_result_history_endpoint_can_be_empty(monkeypatch, tmp_path: Path) -> None:

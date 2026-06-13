@@ -151,6 +151,7 @@ const formats = [
   "alphaomega",
   "nwb",
 ];
+const maxPreviewDurationSec = 300;
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
@@ -389,7 +390,7 @@ function App() {
       const recommended = value.channel_ids.slice(0, model?.recommended_channels ?? 4);
       setChannels(recommended.join(", "));
       setStartSec(0);
-      setEndSec(Math.min(10, Number(value.duration_sec.toFixed(3))));
+      setEndSec(Math.min(10, value.duration_sec));
       setOperationProgress({ operation: "inspect", percent: 100, label: chinese ? "读取记录" : "Read recording", detail: chinese ? "记录元数据读取完成。" : "Recording metadata is ready." });
     } catch (reason) {
       setError((reason as Error).message);
@@ -400,6 +401,15 @@ function App() {
   }
 
   async function loadPreview() {
+    const durationSec = endSec - startSec;
+    if (durationSec <= 0) {
+      setError(chinese ? "结束时间必须大于开始时间。" : "End time must be greater than start time.");
+      return;
+    }
+    if (durationSec > maxPreviewDurationSec) {
+      setError(chinese ? "单次预览最长支持 300 秒。" : "A single preview can cover at most 300 seconds.");
+      return;
+    }
     setBusy("preview");
     setOperationProgress({ operation: "preview", percent: 6, label: chinese ? "读取与处理" : "Read and preprocess", detail: chinese ? "正在读取选定片段并执行预处理。" : "Reading and preprocessing the selected interval." });
     setError("");
@@ -410,7 +420,7 @@ function App() {
         body: JSON.stringify({
           source: payloadSource,
           start_sec: startSec,
-          duration_sec: Math.max(0.2, endSec - startSec),
+          duration_sec: Math.max(0.2, durationSec),
           channel_ids: selectedChannels.length ? selectedChannels : null,
         }),
       });
@@ -992,7 +1002,7 @@ function App() {
           )}
           <div className="field-row">
             <Field label={chinese ? "开始 / s" : "Start / s"}><input type="number" step="0.1" value={startSec} onChange={(event) => setStartSec(Number(event.target.value))} /></Field>
-            <Field label={chinese ? "结束 / s" : "End / s"}><input type="number" step="0.1" value={endSec} onChange={(event) => setEndSec(Number(event.target.value))} /></Field>
+            <Field label={chinese ? "结束 / s" : "End / s"} hint={chinese ? "单次预览最长 300 秒。" : "Maximum 300 seconds per preview."}><input type="number" step="0.1" value={endSec} onChange={(event) => setEndSec(Number(event.target.value))} /></Field>
           </div>
           <Field label={chinese ? "通道 ID" : "Channel IDs"} hint={chinese ? "逗号分隔，默认取前 4 个通道。" : "Comma-separated. The first four channels are selected by default."}>
             <input value={channels} onChange={(event) => setChannels(event.target.value)} placeholder="0, 1, 2, 3" />

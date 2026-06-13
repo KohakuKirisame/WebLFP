@@ -18,6 +18,8 @@ files, and does **not** include training or fine-tuning code.
 - 🔎 Inspects metadata, stream options, channel IDs, time ranges, dtype, and
   sampling rate before inference.
 - 📈 Previews raw and robust z-score processed traces before running the model.
+- 🧠 Keeps the latest selected raw segment in memory so preview and inference do
+  not read the same recording range twice; one preview may cover up to 300 s.
 - 🧩 Generates 256D LFP features from the unified pretrained checkpoint.
 - 🎯 Runs the bundled narrow / non-narrow `presence` and `count` downstream head
   directly on those generated LFP features.

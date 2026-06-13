@@ -24,6 +24,7 @@ from .recording import (
     open_recording,
 )
 from .run_history import RunStore, RunSummary, StoredRunData
+from .segment_cache import TraceSegmentCache
 from .settings import (
     detect_system,
     get_pytorch_option,
@@ -41,7 +42,7 @@ class InspectRequest(BaseModel):
 class PreviewRequest(BaseModel):
     source: SourceConfig
     start_sec: float = Field(default=0, ge=0)
-    duration_sec: float = Field(default=2, gt=0, le=30)
+    duration_sec: float = Field(default=2, gt=0, le=300)
     channel_ids: list[str] | None = None
     max_points: int = Field(default=1200, ge=100, le=5000)
 
@@ -93,6 +94,7 @@ class InferenceResponse(BaseModel):
 
 results = RunStore()
 inference_jobs = InferenceJobStore()
+trace_segments = TraceSegmentCache()
 app = FastAPI(title="WebLFP", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
@@ -127,6 +129,7 @@ def _run_and_store(
         batch_size=request.batch_size,
         device_choice=request.device,
         progress_callback=progress_callback,
+        segment_cache=trace_segments,
     )
     stored = results.add(result, request.model_dump())
     return _inference_response(stored)
@@ -252,15 +255,17 @@ def recording_streams(request: InspectRequest) -> RecordingStreamOptions:
 @app.post("/api/preview", response_model=PreviewResponse)
 def preview_recording(request: PreviewRequest) -> PreviewResponse:
     try:
-        recording = open_recording(request.source)
-        metadata = recording.metadata
-        end_sec = min(metadata.duration_sec, request.start_sec + request.duration_sec)
-        if request.start_sec >= end_sec:
-            raise ValueError("Preview start is outside the recording duration.")
-        selected = request.channel_ids or metadata.channel_ids[:4]
-        start_frame = round(request.start_sec * metadata.sampling_rate_hz)
-        end_frame = round(end_sec * metadata.sampling_rate_hz)
-        traces = recording.get_traces(start_frame, end_frame, selected)
+        segment, _ = trace_segments.get(
+            source=request.source,
+            start_sec=request.start_sec,
+            end_sec=request.start_sec + request.duration_sec,
+            channel_ids=request.channel_ids,
+            default_channel_count=4,
+            clamp_end=True,
+        )
+        metadata = segment.metadata
+        selected = segment.channel_ids
+        traces = segment.traces
         normalized = robust_zscore_channels(traces)
         times, raw_preview = downsample_preview(
             traces,

@@ -59,13 +59,13 @@ const englishSections: GuideSection[] = [
   {
     title: "Choose time and channels",
     paragraphs: [
-      "Start with a short representative interval. Set start and end time in seconds, comma-separated channel IDs, and the inference device: Auto, CPU, or CUDA.",
+      "Start with a representative interval of up to 300 seconds per preview. Set start and end time in seconds, comma-separated channel IDs, and the inference device: Auto, CPU, or CUDA.",
       "More channels increase memory and GPU-memory use. Begin with a small representative set.",
     ],
   },
   {
     title: "Preview preprocessing",
-    paragraphs: ["Select Preview processed signal and inspect both raw and processed traces. Check:"],
+    paragraphs: ["Select Preview processed signal and inspect both raw and processed traces. The selected raw segment is retained in memory so inference can reuse it without reading the recording again. Check:"],
     bullets: [
       "The waveform resembles the expected LFP signal.",
       "There are no all-zero, constant, or obviously bad channels.",
@@ -76,7 +76,7 @@ const englishSections: GuideSection[] = [
   },
   {
     title: "Run LFP-only inference",
-    paragraphs: ["After checking the preview, select Run LFP-only inference. WebLFP will:"],
+    paragraphs: ["After checking the preview, select Run LFP-only inference. If the source, stream, time range, and channels are unchanged, WebLFP reuses the segment already held in memory. It will:"],
     steps: [
       "Read the selected time range and channels.",
       "Resample to the model rate when required.",
@@ -146,17 +146,17 @@ const chineseSections: GuideSection[] = [
   },
   {
     title: "选择时间和通道",
-    paragraphs: ["建议先选择较短的代表性片段。设置开始和结束时间（秒）、逗号分隔的通道 ID，以及自动、CPU 或 CUDA 推理设备。", "通道过多会增加内存和显存占用，初次检查可先使用少量代表性通道。"],
+    paragraphs: ["建议先选择代表性片段，单次预览最长 300 秒。设置开始和结束时间（秒）、逗号分隔的通道 ID，以及自动、CPU 或 CUDA 推理设备。", "通道过多会增加内存和显存占用，初次检查可先使用少量代表性通道。"],
   },
   {
     title: "预览处理结果",
-    paragraphs: ["点击“预览处理结果”，并检查原始波形和处理后波形："],
+    paragraphs: ["点击“预览处理结果”，并检查原始波形和处理后波形。选定的原始片段会保留在内存中，后续推理无需再次读取记录："],
     bullets: ["波形是否像预期的 LFP。", "是否存在全零、全常数或明显坏道。", "时间范围是否覆盖关心的实验阶段。", "处理后波形是否没有明显异常放大。"],
     warning: "预览不合理时不要直接推理，应先调整通道、时间范围或读取参数。",
   },
   {
     title: "运行 LFP-only 推理",
-    paragraphs: ["预览确认后，点击“运行 LFP-only 推理”。WebLFP 会："],
+    paragraphs: ["预览确认后，点击“运行 LFP-only 推理”。如果数据源、数据流、时间范围和通道没有变化，WebLFP 会复用内存中的片段，然后："],
     steps: ["读取选定时间和通道。", "必要时重采样到模型采样率。", "切分固定长度时间窗。", "逐通道执行 robust z-score。", "使用 LFP 分支生成 256 维 feature。"],
     warning: "整个过程不读取 Spike，也不执行 Spike sorting。",
   },

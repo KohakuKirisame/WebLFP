@@ -25,7 +25,8 @@ files, and does **not** include training or fine-tuning code.
   directly on those generated LFP features.
 - 🖼️ Visualizes PCA trajectories, adjacent-window cosine similarity, and
   downstream time-series results.
-- 🧾 Saves local run history and exports `embeddings.npz` plus `run.json`.
+- 🧾 Saves, reopens, and deletes local run history; exports `embeddings.npz`
+  plus `run.json`.
 - 🖥️ Checks CPU, CUDA, cuDNN, ROCm, memory, VRAM, and BF16 capability, with a
   settings page for choosing a PyTorch build.
 

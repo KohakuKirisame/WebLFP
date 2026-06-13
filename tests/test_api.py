@@ -149,3 +149,21 @@ def test_result_history_endpoint_can_be_empty(monkeypatch, tmp_path: Path) -> No
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_result_history_endpoint_deletes_saved_run(monkeypatch, tmp_path: Path) -> None:
+    store = RunStore(tmp_path / "runs")
+    run_id = "a" * 12
+    metadata_path = store.directory / f"{run_id}.json"
+    arrays_path = store.directory / f"{run_id}.npz"
+    metadata_path.write_text("{}", encoding="utf-8")
+    np.savez(arrays_path, embeddings=np.zeros((1, 2), dtype=np.float32))
+    monkeypatch.setattr("weblfp.api.results", store)
+
+    response = client.delete(f"/api/results/{run_id}")
+
+    assert response.status_code == 200
+    assert response.json() == {"run_id": run_id, "deleted": True}
+    assert not metadata_path.exists()
+    assert not arrays_path.exists()
+    assert client.delete(f"/api/results/{run_id}").status_code == 404

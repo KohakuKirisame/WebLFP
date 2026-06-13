@@ -171,6 +171,16 @@ class RunStore:
             metadata["downstream"] = result
             self._write_json(self._metadata_path(run_id), metadata)
 
+    def delete(self, run_id: str) -> None:
+        metadata_path = self._metadata_path(run_id)
+        arrays_path = self._arrays_path(run_id)
+        with self._lock:
+            existing = [path for path in (arrays_path, metadata_path) if path.is_file()]
+            if not existing:
+                raise FileNotFoundError(f"Run {run_id!r} was not found.")
+            for path in existing:
+                path.unlink()
+
     def _metadata_path(self, run_id: str) -> Path:
         self._validate_run_id(run_id)
         return self.directory / f"{run_id}.json"

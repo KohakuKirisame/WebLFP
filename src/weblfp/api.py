@@ -66,6 +66,11 @@ class SpikeTypeDecodeRequest(BaseModel):
     device: Literal["auto", "cpu", "cuda"] = "auto"
 
 
+class DeleteRunResponse(BaseModel):
+    run_id: str
+    deleted: bool
+
+
 class PreviewResponse(BaseModel):
     metadata: RecordingMetadata
     channel_ids: list[str]
@@ -331,6 +336,17 @@ def cancel_inference_job(job_id: str) -> InferenceJobStatus:
 @app.get("/api/results", response_model=list[RunSummary])
 def result_history() -> list[RunSummary]:
     return results.list()
+
+
+@app.delete("/api/results/{run_id}", response_model=DeleteRunResponse)
+def delete_result(run_id: str) -> DeleteRunResponse:
+    try:
+        results.delete(run_id)
+    except (FileNotFoundError, ValueError) as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except OSError as error:
+        raise _bad_request(error) from error
+    return DeleteRunResponse(run_id=run_id, deleted=True)
 
 
 @app.get("/api/results/{run_id}", response_model=InferenceResponse)

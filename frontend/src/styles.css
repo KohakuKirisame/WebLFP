@@ -304,7 +304,11 @@ input:focus, select:focus { border-color: #3b918b; box-shadow: 0 0 0 3px rgba(56
 .history-metrics div { display: grid; gap: 5px; }
 .history-metrics span { color: var(--muted); font-size: 9px; }
 .history-metrics strong { font: 500 11px "Cascadia Mono", Consolas, monospace; }
-.history-card .primary-button { white-space: nowrap; }
+.history-actions { display: grid; gap: 7px; }
+.history-card .primary-button, .history-card .danger-button { min-width: 102px; white-space: nowrap; }
+.danger-button { padding: 8px 12px; color: #d99aa4; border: 1px solid #693740; border-radius: 8px; background: rgba(92, 34, 43, .2); font-size: 11px; }
+.danger-button:hover:not(:disabled) { color: #f2bcc4; border-color: #a54d5b; background: rgba(126, 45, 58, .3); }
+.danger-button:disabled { cursor: not-allowed; opacity: .42; }
 .history-empty { min-height: 280px; display: grid; place-items: center; align-content: center; gap: 8px; color: var(--muted); text-align: center; }
 .history-empty strong { color: inherit; font-size: 16px; }
 .history-empty p { margin: 0; font-size: 12px; }

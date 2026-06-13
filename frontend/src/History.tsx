@@ -48,8 +48,8 @@ type RunSummary = {
   device: string;
 };
 
-async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, init);
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.detail ?? `Request failed: ${response.status}`);
   return payload as T;
@@ -68,6 +68,7 @@ export default function History({
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [opening, setOpening] = useState("");
+  const [deleting, setDeleting] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -86,6 +87,27 @@ export default function History({
       setError((reason as Error).message);
     } finally {
       setOpening("");
+    }
+  }
+
+  async function deleteRun(run: RunSummary) {
+    const confirmed = window.confirm(
+      chinese
+        ? `确定删除 ${run.source_name} 的历史运行吗？\n\nRun ID: ${run.run_id}\n此操作会删除本机保存的结果且无法恢复。`
+        : `Delete the historical run for ${run.source_name}?\n\nRun ID: ${run.run_id}\nThis permanently removes the locally saved result.`,
+    );
+    if (!confirmed) return;
+    setDeleting(run.run_id);
+    setError("");
+    try {
+      await getJson<{ run_id: string; deleted: boolean }>(`/api/results/${run.run_id}`, {
+        method: "DELETE",
+      });
+      setRuns((current) => current.filter((item) => item.run_id !== run.run_id));
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setDeleting("");
     }
   }
 
@@ -123,9 +145,14 @@ export default function History({
                 <div><span>Feature</span><strong>{run.embedding_dim} D</strong></div>
                 <div><span>{chinese ? "设备" : "Device"}</span><strong>{run.device.toUpperCase()}</strong></div>
               </div>
-              <button className="primary-button" disabled={opening !== ""} onClick={() => void openRun(run.run_id)}>
-                {opening === run.run_id ? (chinese ? "正在打开…" : "Opening…") : (chinese ? "查看结果" : "View result")}
-              </button>
+              <div className="history-actions">
+                <button className="primary-button" disabled={opening !== "" || deleting !== ""} onClick={() => void openRun(run.run_id)}>
+                  {opening === run.run_id ? (chinese ? "正在打开…" : "Opening…") : (chinese ? "查看结果" : "View result")}
+                </button>
+                <button className="danger-button" disabled={opening !== "" || deleting !== ""} onClick={() => void deleteRun(run)}>
+                  {deleting === run.run_id ? (chinese ? "正在删除…" : "Deleting…") : (chinese ? "删除" : "Delete")}
+                </button>
+              </div>
             </article>
           ))}
         </section>

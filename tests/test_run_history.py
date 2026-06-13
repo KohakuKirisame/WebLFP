@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from weblfp.inference import InferenceResult
 from weblfp.profile import default_model_dir, load_model_profile
@@ -43,5 +44,15 @@ def test_run_store_persists_and_restores_result_data(tmp_path: Path) -> None:
     assert restored.window_start_sec == [0.0, 0.05, 0.1]
     assert len(restored.pca_2d) == 3
     assert restored.downstream == {"decoder_id": "reference", "presence_rates": {}}
-    assert reopened.arrays_path(stored.run_id).is_file()
-    assert reopened.metadata_path(stored.run_id).is_file()
+    arrays_path = reopened.arrays_path(stored.run_id)
+    metadata_path = reopened.metadata_path(stored.run_id)
+    assert arrays_path.is_file()
+    assert metadata_path.is_file()
+
+    reopened.delete(stored.run_id)
+
+    assert reopened.list() == []
+    assert not arrays_path.exists()
+    assert not metadata_path.exists()
+    with pytest.raises(FileNotFoundError, match="was not found"):
+        reopened.delete(stored.run_id)

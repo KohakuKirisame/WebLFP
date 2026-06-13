@@ -35,7 +35,7 @@ const englishSections: GuideSection[] = [
     title: "Open the application",
     paragraphs: [
       "Start WebLFP and open the address shown by the launcher. The header reports model-weight status. If the weight is unavailable, verify that Git LFS downloaded the bundled model file.",
-      "Workspace imports recordings, previews signals, runs inference, and exports results. Settings checks and configures the compute environment and appearance. Guide shows this complete user guide.",
+      "Workspace imports recordings, previews signals, runs inference, and exports results. History reopens or permanently deletes locally saved runs. Settings configures the compute environment and appearance. Guide shows this complete user guide.",
     ],
   },
   {
@@ -132,7 +132,7 @@ const chineseSections: GuideSection[] = [
   },
   {
     title: "打开应用",
-    paragraphs: ["启动 WebLFP 后，用浏览器打开启动窗口提示的地址。页面顶部会显示模型权重状态；如果权重不可用，请确认 Git LFS 已下载内置模型文件。", "工作区用于导入记录、预览、推理和导出；设置用于检查计算环境、安装 PyTorch 和调整外观；说明页展示这份完整指南。"],
+    paragraphs: ["启动 WebLFP 后，用浏览器打开启动窗口提示的地址。页面顶部会显示模型权重状态；如果权重不可用，请确认 Git LFS 已下载内置模型文件。", "工作区用于导入记录、预览、推理和导出；历史页可重新查看或永久删除本机 runs；设置用于检查计算环境、安装 PyTorch 和调整外观；说明页展示这份完整指南。"],
   },
   {
     title: "导入 LFP 记录",

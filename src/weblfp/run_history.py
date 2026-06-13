@@ -10,7 +10,7 @@ from uuid import uuid4
 import numpy as np
 from pydantic import BaseModel
 
-from .inference import InferenceResult
+from .inference import InferenceResult, compute_umap_3d
 from .profile import project_root
 
 
@@ -35,7 +35,8 @@ class StoredRunData(BaseModel):
     model_sample_rate_hz: float
     selected_channel_ids: list[str]
     window_start_sec: list[float]
-    pca_2d: list[list[float]]
+    umap_3d: list[list[float]]
+    umap_window_start_sec: list[float]
     adjacent_cosine_similarity: list[float]
     embedding_norm_min: float
     embedding_norm_max: float
@@ -83,6 +84,12 @@ class RunStore:
             "normalization": result.profile.normalization,
             "embedding_dim": result.profile.embedding_dim,
             "window_count": len(result.embeddings),
+            "visualization": {
+                "method": "umap",
+                "dimensions": 3,
+                "point_count": len(result.umap_3d),
+                "metric": "cosine",
+            },
             "embedding_norm_min": float(norms.min()),
             "embedding_norm_max": float(norms.max()),
             "summary": summary.model_dump(),
@@ -97,7 +104,8 @@ class RunStore:
                     embeddings=result.embeddings,
                     window_start_sec=result.window_start_sec,
                     window_end_sec=result.window_end_sec,
-                    pca_2d=result.pca_2d,
+                    umap_3d=result.umap_3d,
+                    umap_window_start_sec=result.umap_window_start_sec,
                     adjacent_cosine_similarity=result.adjacent_cosine_similarity,
                 )
             temporary_arrays.replace(arrays_path)
@@ -119,6 +127,13 @@ class RunStore:
         metadata = self.metadata(run_id)
         with self._lock, np.load(self.arrays_path(run_id), allow_pickle=False) as arrays:
             embeddings = np.asarray(arrays["embeddings"])
+            window_start_sec = np.asarray(arrays["window_start_sec"])
+            if "umap_3d" in arrays:
+                umap_3d = np.asarray(arrays["umap_3d"])
+                umap_window_start_sec = np.asarray(arrays["umap_window_start_sec"])
+            else:
+                umap_3d, umap_indices = compute_umap_3d(embeddings)
+                umap_window_start_sec = window_start_sec[umap_indices]
             return StoredRunData(
                 run_id=run_id,
                 window_count=len(embeddings),
@@ -127,8 +142,9 @@ class RunStore:
                 source_sample_rate_hz=float(metadata["source_sample_rate_hz"]),
                 model_sample_rate_hz=float(metadata["target_sample_rate_hz"]),
                 selected_channel_ids=[str(value) for value in metadata["selected_channel_ids"]],
-                window_start_sec=np.asarray(arrays["window_start_sec"]).tolist(),
-                pca_2d=np.asarray(arrays["pca_2d"]).tolist(),
+                window_start_sec=window_start_sec.tolist(),
+                umap_3d=umap_3d.tolist(),
+                umap_window_start_sec=umap_window_start_sec.tolist(),
                 adjacent_cosine_similarity=np.asarray(
                     arrays["adjacent_cosine_similarity"]
                 ).tolist(),

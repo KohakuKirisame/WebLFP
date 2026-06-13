@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from weblfp.inference import run_inference
+from weblfp.inference import compute_umap_3d, run_inference
 from weblfp.model_service import load_runtime
 from weblfp.profile import default_model_dir
 from weblfp.recording import SourceConfig
@@ -57,6 +57,16 @@ def test_unified_checkpoint_produces_lfp_features(tmp_path: Path) -> None:
     assert np.all(np.isfinite(result.embeddings))
     assert result.profile.epoch == 9
     assert result.device == "cpu"
+
+
+def test_umap_visualization_produces_finite_three_dimensional_coordinates() -> None:
+    embeddings = np.random.default_rng(42).normal(size=(12, 16)).astype(np.float32)
+
+    coordinates, indices = compute_umap_3d(embeddings)
+
+    assert coordinates.shape == (12, 3)
+    assert indices.tolist() == list(range(12))
+    assert np.isfinite(coordinates).all()
 
 
 def test_unified_checkpoint_is_locked_for_inference_only() -> None:

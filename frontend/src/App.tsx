@@ -6,6 +6,8 @@ import {
   TooltipComponent,
   VisualMapComponent,
 } from "echarts/components";
+import { Scatter3DChart } from "echarts-gl/charts";
+import { Grid3DComponent } from "echarts-gl/components";
 import * as echarts from "echarts/core";
 import type { EChartsCoreOption } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
@@ -19,8 +21,10 @@ import Settings, { type ThemeMode } from "./Settings";
 echarts.use([
   LineChart,
   ScatterChart,
+  Scatter3DChart,
   DataZoomComponent,
   GridComponent,
+  Grid3DComponent,
   LegendComponent,
   TooltipComponent,
   VisualMapComponent,
@@ -96,7 +100,8 @@ type Inference = {
   model_sample_rate_hz: number;
   selected_channel_ids: string[];
   window_start_sec: number[];
-  pca_2d: number[][];
+  umap_3d: number[][];
+  umap_window_start_sec: number[];
   adjacent_cosine_similarity: number[];
   embedding_norm_min: number;
   embedding_norm_max: number;
@@ -577,49 +582,74 @@ function App() {
     };
   }, [chinese, preview, previewMode]);
 
-  const pcaOption = useMemo<EChartsCoreOption | null>(() => {
+  const umapOption = useMemo<EChartsCoreOption | null>(() => {
     if (!inference) return null;
     return {
-      animationDuration: 450,
+      animation: false,
       tooltip: {
         formatter: (params: unknown) => {
-          const item = params as { dataIndex?: number };
+          const item = params as { data?: number[]; dataIndex?: number };
           const index = item.dataIndex ?? 0;
-          const time = inference.window_start_sec[index];
-          return `${chinese ? "窗口" : "Window"} ${index + 1}<br/>${time.toFixed(3)} s`;
+          const time = inference.umap_window_start_sec[index];
+          return `${chinese ? "可视化点" : "Visualization point"} ${index + 1}<br/>${time.toFixed(3)} s`;
         },
-      },
-      grid: { left: 52, right: 18, top: 18, bottom: 42 },
-      xAxis: {
-        type: "value",
-        name: "PC 1",
-        axisLabel: { color: "#71808d" },
-        axisLine: { lineStyle: { color: "#28333d" } },
-        splitLine: { lineStyle: { color: "#1d2831" } },
-      },
-      yAxis: {
-        type: "value",
-        name: "PC 2",
-        axisLabel: { color: "#71808d" },
-        axisLine: { lineStyle: { color: "#28333d" } },
-        splitLine: { lineStyle: { color: "#1d2831" } },
       },
       visualMap: {
         min: 0,
-        max: Math.max(1, inference.window_count - 1),
-        dimension: 2,
-        orient: "horizontal",
-        right: 20,
-        top: 0,
-        inRange: { color: ["#23b5a9", "#6f7bf7", "#b56ee8"] },
+        max: Math.max(1, inference.umap_3d.length - 1),
+        dimension: 3,
         show: false,
+        inRange: { color: ["#23b5a9", "#6f7bf7", "#b56ee8"] },
+      },
+      xAxis3D: {
+        type: "value",
+        name: "UMAP 1",
+        nameTextStyle: { color: "#82909d" },
+        axisLabel: { color: "#71808d" },
+        axisLine: { lineStyle: { color: "#35434e" } },
+        splitLine: { lineStyle: { color: "#1d2831" } },
+      },
+      yAxis3D: {
+        type: "value",
+        name: "UMAP 2",
+        nameTextStyle: { color: "#82909d" },
+        axisLabel: { color: "#71808d" },
+        axisLine: { lineStyle: { color: "#35434e" } },
+        splitLine: { lineStyle: { color: "#1d2831" } },
+      },
+      zAxis3D: {
+        type: "value",
+        name: "UMAP 3",
+        nameTextStyle: { color: "#82909d" },
+        axisLabel: { color: "#71808d" },
+        axisLine: { lineStyle: { color: "#35434e" } },
+        splitLine: { lineStyle: { color: "#1d2831" } },
+      },
+      grid3D: {
+        boxWidth: 120,
+        boxHeight: 90,
+        boxDepth: 120,
+        environment: "transparent",
+        viewControl: {
+          projection: "perspective",
+          autoRotate: false,
+          distance: 190,
+          rotateSensitivity: 1.2,
+          zoomSensitivity: 1.2,
+          panSensitivity: 1,
+        },
+        light: {
+          main: { intensity: 1.1, shadow: false },
+          ambient: { intensity: 0.7 },
+        },
       },
       series: [{
-        type: "scatter",
-        symbolSize: 9,
-        data: inference.pca_2d.map((point, index) => [point[0], point[1], index]),
+        type: "scatter3D",
+        symbolSize: 6,
+        data: inference.umap_3d.map((point, index) => [point[0], point[1], point[2], index]),
+        emphasis: { itemStyle: { color: "#ffffff" } },
       }],
-    };
+    } as EChartsCoreOption;
   }, [chinese, inference]);
 
   const similarityOption = useMemo<EChartsCoreOption | null>(() => {
@@ -861,7 +891,7 @@ function App() {
             </>
           )}
 
-          {inference && pcaOption && similarityOption && (
+          {inference && umapOption && similarityOption && (
             <>
               <section className="result-metrics">
                 <div className="metric-card surface"><span>{chinese ? "窗口" : "Windows"}</span><strong>{inference.window_count}</strong></div>
@@ -869,10 +899,11 @@ function App() {
                 <div className="metric-card surface"><span>{chinese ? "设备" : "Device"}</span><strong>{inference.device.toUpperCase()}</strong></div>
                 <div className="metric-card surface"><span>{chinese ? "特征范数" : "Feature norm"}</span><strong>{inference.embedding_norm_min.toFixed(4)}–{inference.embedding_norm_max.toFixed(4)}</strong></div>
               </section>
-              <section className="chart-grid">
+              <section className="chart-grid result-chart-stack">
                 <div className="surface chart-card">
-                  <div className="section-title"><div><span>FEATURE GEOMETRY</span><h2>{chinese ? "PCA 二维轨迹" : "Two-dimensional PCA trajectory"}</h2></div></div>
-                  <Chart option={pcaOption} height={340} />
+                  <div className="section-title"><div><span>FEATURE GEOMETRY</span><h2>{chinese ? "UMAP 三维表征空间" : "Three-dimensional UMAP feature space"}</h2></div></div>
+                  <Chart option={umapOption} height={480} />
+                  <p className="chart-help">{chinese ? "按住鼠标拖动以旋转坐标，滚动滚轮缩放，右键拖动平移。最多均匀显示 5000 个窗口。" : "Drag to rotate, use the mouse wheel to zoom, and right-drag to pan. Up to 5,000 windows are sampled evenly for display."}</p>
                 </div>
                 <div className="surface chart-card">
                   <div className="section-title"><div><span>TEMPORAL CONSISTENCY</span><h2>{chinese ? "相邻窗口余弦相似度" : "Adjacent-window cosine similarity"}</h2></div></div>

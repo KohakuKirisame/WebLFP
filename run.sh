@@ -23,6 +23,11 @@ if [[ ! -x .venv/bin/weblfp ]]; then
   "$UV_EXE" sync --locked
 fi
 
+if ! .venv/bin/python -c "import umap" >/dev/null 2>&1; then
+  echo "Installing the UMAP visualization dependency..."
+  "$UV_EXE" pip install --python .venv/bin/python "umap-learn==0.5.12"
+fi
+
 if [[ -z "${SKIP_FRONTEND_BUILD:-}" ]]; then
   if ! command -v npm >/dev/null 2>&1; then
     echo "npm is required to build the frontend." >&2

@@ -20,7 +20,7 @@
 - 🧩 使用统一预训练权重生成 256D LFP feature。
 - 🎯 将生成的 LFP feature 直接接入内置窄波 / 非窄波 `presence` 与 `count`
   下游头。
-- 🖼️ 可视化 PCA 轨迹、相邻窗口余弦相似度和下游任务时间序列结果。
+- 🖼️ 可视化可交互的 UMAP 三维表征空间、相邻窗口余弦相似度和下游任务时间序列结果。
 - 🧾 保存、重新打开或删除本机 run 历史，并导出 `embeddings.npz` 和 `run.json`。
 - 🖥️ 检查 CPU、CUDA、cuDNN、ROCm、内存、显存和 BF16 能力，并在设置页选择
   PyTorch 构建。

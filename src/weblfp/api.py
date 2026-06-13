@@ -88,7 +88,8 @@ class InferenceResponse(BaseModel):
     model_sample_rate_hz: float
     selected_channel_ids: list[str]
     window_start_sec: list[float]
-    pca_2d: list[list[float]]
+    umap_3d: list[list[float]]
+    umap_window_start_sec: list[float]
     adjacent_cosine_similarity: list[float]
     embedding_norm_min: float
     embedding_norm_max: float

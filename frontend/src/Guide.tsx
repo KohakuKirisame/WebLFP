@@ -89,7 +89,7 @@ const englishSections: GuideSection[] = [
   {
     title: "Understand the result",
     paragraphs: [
-      "The result shows the valid window count, feature dimension, actual device, feature-norm check, two-dimensional PCA trajectory, and adjacent-window cosine similarity.",
+      "The result shows the valid window count, feature dimension, actual device, feature-norm check, interactive three-dimensional UMAP feature space, and adjacent-window cosine similarity.",
       "These plots describe how representations change over time. They are not physiological labels or diagnostic conclusions by themselves.",
     ],
   },
@@ -162,7 +162,7 @@ const chineseSections: GuideSection[] = [
   },
   {
     title: "查看结果",
-    paragraphs: ["结果页显示有效窗口数、feature 维度、实际设备、特征范数检查、PCA 二维轨迹和相邻窗口余弦相似度。", "这些图用于观察表征随时间变化，不能单独当作生理标签或诊断结论。"],
+    paragraphs: ["结果页显示有效窗口数、feature 维度、实际设备、特征范数检查、可交互的 UMAP 三维表征空间和相邻窗口余弦相似度。UMAP 图可用鼠标拖动旋转、滚轮缩放和右键拖动平移。", "这些图用于观察表征随时间变化，不能单独当作生理标签或诊断结论。"],
   },
   {
     title: "窄波 / 非窄波活动解码",

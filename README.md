@@ -23,7 +23,7 @@ files, and does **not** include training or fine-tuning code.
 - 🧩 Generates 256D LFP features from the unified pretrained checkpoint.
 - 🎯 Runs the bundled narrow / non-narrow `presence` and `count` downstream head
   directly on those generated LFP features.
-- 🖼️ Visualizes PCA trajectories, adjacent-window cosine similarity, and
+- 🖼️ Visualizes an interactive 3D UMAP feature space, adjacent-window cosine similarity, and
   downstream time-series results.
 - 🧾 Saves, reopens, and deletes local run history; exports `embeddings.npz`
   plus `run.json`.

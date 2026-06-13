@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import numpy as np
@@ -15,7 +16,11 @@ def test_run_store_persists_and_restores_result_data(tmp_path: Path) -> None:
         embeddings=embeddings,
         window_start_sec=np.array([0.0, 0.05, 0.1]),
         window_end_sec=np.array([0.2, 0.25, 0.3]),
-        pca_2d=np.array([[0.0, 0.0], [1.0, 0.5], [2.0, 1.0]], dtype=np.float32),
+        umap_3d=np.array(
+            [[0.0, 0.0, 0.0], [1.0, 0.5, -0.5], [2.0, 1.0, -1.0]],
+            dtype=np.float32,
+        ),
+        umap_window_start_sec=np.array([0.0, 0.05, 0.1]),
         adjacent_cosine_similarity=np.array([0.2, 0.4], dtype=np.float32),
         device="cpu",
         profile=profile,
@@ -42,7 +47,8 @@ def test_run_store_persists_and_restores_result_data(tmp_path: Path) -> None:
     assert restored.window_count == 3
     assert restored.embedding_dim == profile.embedding_dim
     assert restored.window_start_sec == [0.0, 0.05, 0.1]
-    assert len(restored.pca_2d) == 3
+    assert len(restored.umap_3d) == 3
+    assert restored.umap_window_start_sec == [0.0, 0.05, 0.1]
     assert restored.downstream == {"decoder_id": "reference", "presence_rates": {}}
     arrays_path = reopened.arrays_path(stored.run_id)
     metadata_path = reopened.metadata_path(stored.run_id)
@@ -56,3 +62,32 @@ def test_run_store_persists_and_restores_result_data(tmp_path: Path) -> None:
     assert not metadata_path.exists()
     with pytest.raises(FileNotFoundError, match="was not found"):
         reopened.delete(stored.run_id)
+
+
+def test_run_store_reads_legacy_pca_coordinates(tmp_path: Path) -> None:
+    store = RunStore(tmp_path / "runs")
+    run_id = "a" * 12
+    metadata = {
+        "device": "cpu",
+        "source_sample_rate_hz": 1875,
+        "target_sample_rate_hz": 1875,
+        "selected_channel_ids": ["0"],
+        "embedding_norm_min": 1,
+        "embedding_norm_max": 1,
+    }
+    (store.directory / f"{run_id}.json").write_text(
+        json.dumps(metadata),
+        encoding="utf-8",
+    )
+    np.savez(
+        store.directory / f"{run_id}.npz",
+        embeddings=np.ones((2, 4), dtype=np.float32),
+        window_start_sec=np.array([1.0, 1.1]),
+        pca_2d=np.array([[2.0, 3.0], [4.0, 5.0]], dtype=np.float32),
+        adjacent_cosine_similarity=np.array([1.0], dtype=np.float32),
+    )
+
+    restored = store.get(run_id)
+
+    assert restored.umap_3d == [[-0.5, 0.0, 0.0], [0.5, 0.0, 0.0]]
+    assert restored.umap_window_start_sec == [1.0, 1.1]

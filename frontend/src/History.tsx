@@ -10,7 +10,8 @@ export type HistoricalInference = {
   model_sample_rate_hz: number;
   selected_channel_ids: string[];
   window_start_sec: number[];
-  pca_2d: number[][];
+  umap_3d: number[][];
+  umap_window_start_sec: number[];
   adjacent_cosine_similarity: number[];
   embedding_norm_min: number;
   embedding_norm_max: number;

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Callable
 
 import numpy as np
+from umap import UMAP
 
 from .model_service import DeviceChoice, extract_embeddings
 from .preprocessing import (
@@ -22,7 +23,8 @@ class InferenceResult:
     embeddings: np.ndarray
     window_start_sec: np.ndarray
     window_end_sec: np.ndarray
-    pca_2d: np.ndarray
+    umap_3d: np.ndarray
+    umap_window_start_sec: np.ndarray
     adjacent_cosine_similarity: np.ndarray
     device: str
     profile: ModelProfile
@@ -30,16 +32,26 @@ class InferenceResult:
     selected_channel_ids: list[str]
 
 
-def _pca_2d(values: np.ndarray) -> np.ndarray:
-    if len(values) == 1:
-        return np.zeros((1, 2), dtype=np.float32)
-    centered = values - values.mean(axis=0, keepdims=True)
-    u, singular_values, _ = np.linalg.svd(centered, full_matrices=False)
-    dimensions = min(2, u.shape[1])
-    coordinates = u[:, :dimensions] * singular_values[:dimensions]
-    if dimensions == 1:
-        coordinates = np.column_stack([coordinates, np.zeros(len(values))])
-    return np.asarray(coordinates, dtype=np.float32)
+def compute_umap_3d(values: np.ndarray, max_points: int = 5000) -> tuple[np.ndarray, np.ndarray]:
+    sample_count = min(len(values), max_points)
+    indices = np.linspace(0, len(values) - 1, sample_count, dtype=np.int64)
+    sampled = np.asarray(values[indices], dtype=np.float32)
+    if sample_count == 1:
+        return np.zeros((1, 3), dtype=np.float32), indices
+    if sample_count == 2:
+        return np.array([[-0.5, 0, 0], [0.5, 0, 0]], dtype=np.float32), indices
+    reducer = UMAP(
+        n_components=3,
+        n_neighbors=min(15, sample_count - 1),
+        min_dist=0.1,
+        metric="cosine",
+        init="random",
+        random_state=42,
+        transform_seed=42,
+        n_jobs=1,
+        low_memory=True,
+    )
+    return np.asarray(reducer.fit_transform(sampled), dtype=np.float32), indices
 
 
 def _adjacent_similarity(values: np.ndarray) -> np.ndarray:
@@ -112,14 +124,16 @@ def run_inference(
         progress_callback=embedding_progress,
     )
 
-    report(0.96, "正在整理 LFP feature 可视化结果。")
+    report(0.96, "正在生成三维 UMAP 可视化。")
     window_start_sec = start_sec + starts / profile.target_sample_rate_hz
     window_end_sec = window_start_sec + profile.window_sec
+    umap_3d, umap_indices = compute_umap_3d(embeddings)
     result = InferenceResult(
         embeddings=embeddings,
         window_start_sec=np.asarray(window_start_sec, dtype=np.float64),
         window_end_sec=np.asarray(window_end_sec, dtype=np.float64),
-        pca_2d=_pca_2d(embeddings),
+        umap_3d=umap_3d,
+        umap_window_start_sec=np.asarray(window_start_sec[umap_indices], dtype=np.float64),
         adjacent_cosine_similarity=_adjacent_similarity(embeddings),
         device=device,
         profile=profile,

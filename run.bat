@@ -26,6 +26,13 @@ if not exist ".venv\Scripts\weblfp.exe" (
   if errorlevel 1 exit /b 1
 )
 
+".venv\Scripts\python.exe" -c "import umap" >nul 2>&1
+if errorlevel 1 (
+  echo Installing the UMAP visualization dependency...
+  "%UV_EXE%" pip install --python ".venv\Scripts\python.exe" "umap-learn==0.5.12"
+  if errorlevel 1 exit /b 1
+)
+
 if not defined SKIP_FRONTEND_BUILD (
   where npm >nul 2>&1
   if errorlevel 1 (

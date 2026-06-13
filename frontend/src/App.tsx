@@ -1015,9 +1015,12 @@ function App() {
               </div>
             </div>
           )}
-          <div className="field-row">
-            <Field label={chinese ? "开始 / s" : "Start / s"}><input type="number" step="0.1" value={startSec} onChange={(event) => setStartSec(Number(event.target.value))} /></Field>
-            <Field label={chinese ? "结束 / s" : "End / s"} hint={chinese ? "单次预览最长 300 秒。" : "Maximum 300 seconds per preview."}><input type="number" step="0.1" value={endSec} onChange={(event) => setEndSec(Number(event.target.value))} /></Field>
+          <div className="time-range-field">
+            <div className="field-row">
+              <Field label={chinese ? "开始 / s" : "Start / s"}><input type="number" step="0.1" value={startSec} onChange={(event) => setStartSec(Number(event.target.value))} /></Field>
+              <Field label={chinese ? "结束 / s" : "End / s"}><input type="number" step="0.1" value={endSec} onChange={(event) => setEndSec(Number(event.target.value))} /></Field>
+            </div>
+            <span className="field-hint">{chinese ? "单次预览最长 300 秒。" : "Maximum 300 seconds per preview."}</span>
           </div>
           <Field label={chinese ? "通道 ID" : "Channel IDs"} hint={chinese ? "搜索并多选记录中实际存在的通道；检查记录后默认选择推荐通道。" : "Search and select channel IDs found in the recording. Recommended channels are selected after inspection."}>
             <ChannelMultiSelect

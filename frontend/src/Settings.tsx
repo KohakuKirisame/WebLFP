@@ -93,6 +93,17 @@ type InstallStatus = {
   log_tail?: string[];
 };
 
+type UpdateStatus = {
+  repository_url: string;
+  branch: string;
+  status: "up_to_date" | "update_available" | "local_ahead" | "diverged" | "unavailable";
+  update_available: boolean | null;
+  local_commit: string | null;
+  remote_commit: string | null;
+  latest_commit_url: string | null;
+  detail: string;
+};
+
 async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
   const payload = await response.json();
@@ -133,6 +144,8 @@ export default function Settings({
   const [options, setOptions] = useState<PyTorchOption[]>([]);
   const [selectedOption, setSelectedOption] = useState("");
   const [status, setStatus] = useState<InstallStatus | null>(null);
+  const [update, setUpdate] = useState<UpdateStatus | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -169,8 +182,21 @@ export default function Settings({
     }
   }
 
+  async function checkUpdate() {
+    setCheckingUpdate(true);
+    setError("");
+    try {
+      setUpdate(await getJson<UpdateStatus>("/api/settings/update"));
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }
+
   useEffect(() => {
     void refresh();
+    void checkUpdate();
   }, []);
 
   useEffect(() => {
@@ -239,6 +265,7 @@ export default function Settings({
         <button className="back-button" onClick={onBack}>← {chinese ? "返回工作区" : "Back to workspace"}</button>
         <span className="settings-label">SETTINGS</span>
         <a href="#compute">{chinese ? "计算环境" : "Compute environment"}</a>
+        <a href="#updates">{chinese ? "检查更新" : "Check for updates"}</a>
         <a href="#language">{chinese ? "语言" : "Language"}</a>
         <a href="#appearance">{chinese ? "外观" : "Appearance"}</a>
         <div className="settings-sidebar-note">
@@ -374,6 +401,39 @@ export default function Settings({
                   <pre className="install-log">{status.log_tail.join("\n")}</pre>
                 )}
               </div>
+            )}
+          </div>
+        </section>
+
+        <section id="updates" className="settings-section">
+          <div className="settings-section-title">
+            <div><span>SOFTWARE UPDATE</span><h2>{chinese ? "检查更新" : "Check for updates"}</h2></div>
+            <p>{chinese ? "比较本地 Git commit 与 GitHub main；不会自动修改或覆盖本地文件。" : "Compare the local Git commit with GitHub main. No local files are changed automatically."}</p>
+          </div>
+          <div className={`update-panel surface ${update?.status ?? "idle"}`}>
+            <div className="update-heading">
+              <div>
+                <span>{update?.status === "update_available" || update?.status === "diverged" ? "UPDATE AVAILABLE" : "REPOSITORY STATUS"}</span>
+                <strong>{!update ? (chinese ? "尚未检查" : "Not checked yet") : update.status === "up_to_date" ? (chinese ? "当前已是最新版本" : "WebLFP is up to date") : update.status === "local_ahead" ? (chinese ? "本地版本领先于 GitHub" : "Local checkout is ahead of GitHub") : update.status === "diverged" ? (chinese ? "本地与 GitHub 已分叉" : "Local and GitHub histories have diverged") : update.status === "update_available" ? (chinese ? "发现新的 GitHub commit" : "A newer GitHub commit is available") : (chinese ? "暂时无法检查更新" : "Update check unavailable")}</strong>
+              </div>
+              <button className="secondary-button compact" onClick={() => void checkUpdate()} disabled={checkingUpdate}>
+                {checkingUpdate ? (chinese ? "检查中…" : "Checking…") : (chinese ? "重新检查" : "Check again")}
+              </button>
+            </div>
+            <a className="repository-link" href="https://github.com/KohakuKirisame/WebLFP" target="_blank" rel="noreferrer">https://github.com/KohakuKirisame/WebLFP</a>
+            {update && (
+              <>
+                <div className="commit-comparison">
+                  <div><span>{chinese ? "本地 commit" : "Local commit"}</span><code>{update.local_commit?.slice(0, 12) ?? "-"}</code></div>
+                  <div><span>GitHub {update.branch}</span><code>{update.remote_commit?.slice(0, 12) ?? "-"}</code></div>
+                </div>
+                {(update.status === "update_available" || update.status === "diverged") && (
+                  <div className="update-guidance">
+                    <p>{update.status === "diverged" ? (chinese ? "检测到本地修改与远端提交分叉。请先备份本地修改，再手动处理 Git 更新。" : "Local and remote commits have diverged. Back up local changes before resolving the Git update manually.") : (chinese ? "关闭 WebLFP 后，在项目目录运行 git pull --ff-only 获取更新。" : "Close WebLFP, then run git pull --ff-only in the project directory to update.")}</p>
+                    {update.latest_commit_url && <a href={update.latest_commit_url} target="_blank" rel="noreferrer">{chinese ? "查看最新 commit" : "View latest commit"}</a>}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </section>

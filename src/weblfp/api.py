@@ -33,6 +33,7 @@ from .settings import (
     pytorch_options,
     start_pytorch_install,
 )
+from .updates import UpdateStatus, check_for_updates
 
 
 class InspectRequest(BaseModel):
@@ -219,6 +220,11 @@ def system_info(refresh: bool = False) -> dict[str, Any]:
 @app.get("/api/settings/pytorch-status")
 def pytorch_status() -> dict[str, bool]:
     return {"installed": pytorch_installed()}
+
+
+@app.get("/api/settings/update", response_model=UpdateStatus)
+def update_status() -> UpdateStatus:
+    return check_for_updates()
 
 
 @app.get("/api/settings/pytorch-options")

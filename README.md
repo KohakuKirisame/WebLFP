@@ -25,6 +25,7 @@ files, and does **not** include training or fine-tuning code.
   directly on those generated LFP features.
 - 🖼️ Visualizes an interactive 3D UMAP feature space, adjacent-window cosine similarity, and
   downstream time-series results.
+- 🔄 Checks whether GitHub `main` contains a newer commit without modifying local files.
 - 🧾 Saves, reopens, and deletes local run history; exports `embeddings.npz`
   plus `run.json`.
 - 🖥️ Checks CPU, CUDA, cuDNN, ROCm, memory, VRAM, and BF16 capability, with a
@@ -62,7 +63,7 @@ Model weights are stored with Git LFS. Install Git LFS before cloning:
 
 ```bash
 git lfs install
-git clone <repository-url> WebLFP
+git clone https://github.com/KohakuKirisame/WebLFP WebLFP
 cd WebLFP
 git lfs pull
 ```
@@ -166,7 +167,7 @@ Temporary citation format:
 
 ```text
 WebLFP contributors. WebLFP [Computer software].
-<repository-url>, version <release-or-commit>, accessed <YYYY-MM-DD>.
+https://github.com/KohakuKirisame/WebLFP, version <release-or-commit>, accessed <YYYY-MM-DD>.
 ```
 
 ## ⚖️ License

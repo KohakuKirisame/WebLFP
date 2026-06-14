@@ -248,6 +248,19 @@ input:focus, select:focus { border-color: #3b918b; box-shadow: 0 0 0 3px rgba(56
 .install-progress-track.active i { width: 38%; background: linear-gradient(90deg, transparent, var(--teal), var(--violet), transparent); animation: install-progress 1.4s ease-in-out infinite; }
 @keyframes install-progress { from { transform: translateX(-100%); } to { transform: translateX(265%); } }
 .install-log { max-height: 180px; overflow: auto; margin: 12px 0 0; padding: 11px 12px; color: #9fb0b9; background: rgba(5, 10, 13, .5); border: 1px solid var(--border); border-radius: 7px; font: 400 10px/1.55 "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+.update-panel { display: grid; gap: 16px; padding: 22px; }
+.update-panel.update_available, .update-panel.diverged { border-color: #765f2d; background: color-mix(in srgb, #d9a928 8%, var(--surface)); }
+.update-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.update-heading > div { display: grid; gap: 5px; }
+.update-heading span, .commit-comparison span { color: var(--muted); font: 500 9px "Cascadia Mono", Consolas, monospace; letter-spacing: .12em; }
+.update-heading strong { font-size: 15px; }
+.repository-link { width: fit-content; color: var(--teal); font: 500 11px "Cascadia Mono", Consolas, monospace; overflow-wrap: anywhere; }
+.commit-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.commit-comparison div { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--surface-2) 72%, transparent); }
+.commit-comparison code { color: var(--text); font-size: 12px; }
+.update-guidance { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 13px 14px; border: 1px solid #765f2d; border-radius: 8px; color: #d6c38f; background: rgba(103, 78, 24, .18); }
+.update-guidance p { margin: 0; font-size: 11px; line-height: 1.6; }
+.update-guidance a { flex: 0 0 auto; color: #f1cc63; font-size: 11px; }
 .environment-confirm { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin: 16px 0; padding: 18px 20px; border: 1px solid color-mix(in srgb, #d08a45 38%, var(--border)); border-radius: 11px; background: rgba(150, 91, 34, .1); }
 .environment-confirm.confirmed { border-color: color-mix(in srgb, var(--teal) 38%, var(--border)); background: color-mix(in srgb, var(--teal) 8%, transparent); }
 .environment-confirm > div { display: grid; gap: 5px; }
@@ -361,6 +374,8 @@ input:focus, select:focus { border-color: #3b918b; box-shadow: 0 0 0 3px rgba(56
 :root[data-theme="light"] .settings-button:hover,
 :root[data-theme="light"] .settings-button.active { color: #075f5a; background: #e4f3f1; border-color: #087f78; box-shadow: 0 0 0 2px rgba(8, 127, 120, .1); }
 :root[data-theme="light"] .install-log { color: #40545f; background: #f1f5f6; }
+:root[data-theme="light"] .update-guidance { color: #74571e; background: #fff8e6; border-color: #d7bd78; }
+:root[data-theme="light"] .update-guidance a { color: #805d00; }
 :root[data-theme="light"] .guide-card p { color: #60717b; }
 :root[data-theme="light"] .guide-card ul,
 :root[data-theme="light"] .guide-card ol { color: #60717b; }

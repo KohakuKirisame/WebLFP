@@ -21,6 +21,7 @@
 - 🎯 将生成的 LFP feature 直接接入内置窄波 / 非窄波 `presence` 与 `count`
   下游头。
 - 🖼️ 可视化可交互的 UMAP 三维表征空间、相邻窗口余弦相似度和下游任务时间序列结果。
+- 🔄 检查 GitHub `main` 是否存在更新 commit，不会自动修改本地文件。
 - 🧾 保存、重新打开或删除本机 run 历史，并导出 `embeddings.npz` 和 `run.json`。
 - 🖥️ 检查 CPU、CUDA、cuDNN、ROCm、内存、显存和 BF16 能力，并在设置页选择
   PyTorch 构建。
@@ -56,7 +57,7 @@ models/spike-type-decoder/model.pt
 
 ```bash
 git lfs install
-git clone <repository-url> WebLFP
+git clone https://github.com/KohakuKirisame/WebLFP WebLFP
 cd WebLFP
 git lfs pull
 ```
@@ -152,7 +153,7 @@ https://doi.org/10.1609/aaai.v40i21.38790
 
 ```text
 WebLFP contributors. WebLFP [Computer software].
-<repository-url>, version <release-or-commit>, accessed <YYYY-MM-DD>.
+https://github.com/KohakuKirisame/WebLFP, version <release-or-commit>, accessed <YYYY-MM-DD>.
 ```
 
 ## ⚖️ 许可证
